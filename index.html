@@ -60,10 +60,19 @@
                 <button type="button" data-target="lighter" data-delta="1" aria-label="More lighter steps" title="More lighter steps (L)">+</button>
               </span>
             </label>
+            <div class="control">
+              <span class="control-label">Vision</span>
+              <div class="segmented vision" role="radiogroup" aria-label="Colour vision simulation" id="vision" title="Simulate colour blindness (V)" aria-keyshortcuts="V">
+                <button type="button" role="radio" data-vision="normal" aria-checked="true">Normal</button>
+                <button type="button" role="radio" data-vision="protan" aria-checked="false">Protan</button>
+                <button type="button" role="radio" data-vision="deutan" aria-checked="false">Deutan</button>
+              </div>
+            </div>
             <button type="button" class="primary" id="export" title="Export .gpl (E)" aria-keyshortcuts="E">Export .gpl</button>
           </div>
         </header>
 
+        <p class="vision-note" id="vision-note" hidden></p>
         <div class="original-bar">
           <span class="original-label">Original palette</span>
           <div class="segmented compact" role="radiogroup" aria-label="Original palette height" id="original-size">
@@ -92,6 +101,7 @@
           <tr><td><kbd>Shift</kbd> <kbd>D</kbd></td><td>Fewer darker steps</td></tr>
           <tr><td><kbd>L</kbd></td><td>More lighter steps</td></tr>
           <tr><td><kbd>Shift</kbd> <kbd>L</kbd></td><td>Fewer lighter steps</td></tr>
+          <tr><td><kbd>V</kbd></td><td>Cycle vision: normal, protan, deutan</td></tr>
           <tr><td><kbd>E</kbd></td><td>Export .gpl</td></tr>
           <tr><td><kbd>/</kbd></td><td>Search (name, number or #hex)</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Clear the search</td></tr>

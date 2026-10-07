@@ -26,6 +26,14 @@ l'app mostra i 5 colori di Wada più vicini con la loro distanza percettiva (ΔE
 circa 2 è la minima differenza percepibile) e ordina la lista per vicinanza.
 Un clic su uno dei colori trovati limita la lista alle combinazioni che lo contengono.
 
+### Simulazione del daltonismo
+
+Il selettore **Vision** (o il tasto `V`) mostra l'intera interfaccia come la vede chi ha protanopia (assenza dei coni del rosso)
+o deuteranopia (assenza dei coni del verde). Insieme alle forme lievi degli stessi tipi coprono quasi tutti i casi:
+circa l'8% degli uomini e lo 0,4% delle donne di origine europea. Si usano le matrici di Machado, Oliveira e Fernandes (2009)
+a severità massima, cioè il caso peggiore, applicate in RGB lineare (`src/core/vision.ts`).
+È solo una vista: hex mostrati, copie ed export restano i colori reali.
+
 ### Scorciatoie da tastiera
 
 | Tasto | Azione |
@@ -33,6 +41,7 @@ Un clic su uno dei colori trovati limita la lista alle combinazioni che lo conte
 | `↓` `J` / `↑` `K` | Combinazione successiva / precedente nella lista filtrata |
 | `D` / `Shift+D` | Un passo scuro in più / in meno |
 | `L` / `Shift+L` | Un passo chiaro in più / in meno |
+| `V` | Visione: normale, protan, deutan |
 | `E` | Export .gpl |
 | `/` | Vai alla ricerca |
 | `Esc` | Azzera la ricerca |
@@ -108,6 +117,7 @@ src/core/data.ts           dataset, correzioni dei nomi, 348 combinazioni e comb
 src/core/shades.ts         generazione delle tinte
 src/core/palette.ts        palette di una combinazione, titolo e nome file
 src/core/nearest.ts        ricerca dei colori più vicini (ΔE OK)
+src/core/vision.ts         simulazione di protanopia e deuteranopia
 src/core/export/           exporter intercambiabili (gpl; altri formati, es. lista hex, si aggiungono qui)
 src/main.ts, style.css     interfaccia
 tests/                     test Vitest del core

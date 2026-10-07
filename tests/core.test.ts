@@ -5,6 +5,7 @@ import { toGpl } from '../src/core/export/gpl';
 import { buildPalette, paletteFileName } from '../src/core/palette';
 import { nearestColors, parseHexColor } from '../src/core/nearest';
 import { buildScale, MAX_STEPS } from '../src/core/shades';
+import { feColorMatrixValues, simulate } from '../src/core/vision';
 
 const toOklch = converter('oklch');
 const lightness = (hex: string) => toOklch(hex)!.l;
@@ -139,5 +140,28 @@ describe('nearestColors', () => {
     const matches = nearestColors('#3a5f8b', 5);
     expect(matches).toHaveLength(5);
     for (let i = 1; i < matches.length; i++) expect(matches[i].deltaE).toBeGreaterThanOrEqual(matches[i - 1].deltaE);
+  });
+});
+
+describe('vision simulation', () => {
+  it('leaves greys unchanged and keeps normal vision as is', () => {
+    for (const mode of ['protan', 'deutan'] as const) {
+      for (const v of [0, 64, 128, 200, 255]) expect(simulate([v, v, v], mode)).toEqual([v, v, v]);
+    }
+    expect(simulate([200, 30, 40], 'normal')).toEqual([200, 30, 40]);
+  });
+
+  it('collapses red and green towards the same hue', () => {
+    for (const mode of ['protan', 'deutan'] as const) {
+      const [r1, g1] = simulate([220, 40, 40], mode);
+      const [r2, g2] = simulate([40, 160, 40], mode);
+      // Red and green both turn into olive or yellowish tones: red no longer dominates green.
+      expect(Math.abs(r1 - g1)).toBeLessThan(60);
+      expect(Math.abs(r2 - g2)).toBeLessThan(60);
+    }
+  });
+
+  it('builds a 20-value feColorMatrix', () => {
+    expect(feColorMatrixValues('deutan').split(' ')).toHaveLength(20);
   });
 });

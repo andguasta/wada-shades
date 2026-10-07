@@ -4,6 +4,7 @@ import { exporters } from './core/export';
 import { describeDistance, nearestColors, parseHexColor, type ColorMatch } from './core/nearest';
 import { buildPalette, comboTitle, paletteFileName } from './core/palette';
 import { MAX_STEPS, type Shade } from './core/shades';
+import { feColorMatrixValues, VISION_LABELS, VISION_MODES, type VisionMode } from './core/vision';
 
 interface State {
   comboId: number;
@@ -24,6 +25,9 @@ const els = {
   picker: $<HTMLInputElement>('picker'),
   match: $<HTMLElement>('match'),
   shortcuts: $<HTMLDialogElement>('shortcuts'),
+  app: document.querySelector('.app') as HTMLElement,
+  vision: $<HTMLDivElement>('vision'),
+  visionNote: $<HTMLParagraphElement>('vision-note'),
   sizeFilter: $<HTMLDivElement>('size-filter'),
   title: $<HTMLHeadingElement>('combo-title'),
   colors: $<HTMLParagraphElement>('combo-colors'),
@@ -414,6 +418,45 @@ window.addEventListener('hashchange', () => {
   revealInList();
 });
 
+// Colour vision simulation: an SVG colour-matrix filter over the whole app.
+// View only; copied hex values and exports always use the real colours.
+(function installVisionFilters() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'vision-filters');
+  for (const mode of ['protan', 'deutan'] as const) {
+    const filter = document.createElementNS(ns, 'filter');
+    filter.id = `vision-${mode}`;
+    filter.setAttribute('color-interpolation-filters', 'linearRGB');
+    const matrix = document.createElementNS(ns, 'feColorMatrix');
+    matrix.setAttribute('type', 'matrix');
+    matrix.setAttribute('values', feColorMatrixValues(mode));
+    filter.append(matrix);
+    svg.append(filter);
+  }
+  document.body.append(svg);
+})();
+
+let vision: VisionMode = 'normal';
+
+function setVision(mode: VisionMode) {
+  vision = mode;
+  if (mode === 'normal') delete els.app.dataset.vision;
+  else els.app.dataset.vision = mode;
+  for (const btn of els.vision.querySelectorAll<HTMLButtonElement>('button')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.vision === mode));
+  }
+  els.visionNote.hidden = mode === 'normal';
+  els.visionNote.textContent =
+    mode === 'normal' ? '' : `Simulating ${VISION_LABELS[mode].toLowerCase()}. Hex values, copies and exports keep the real colours.`;
+}
+
+els.vision.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+  if (btn?.dataset.vision) setVision(btn.dataset.vision as VisionMode);
+});
+
 // Keyboard shortcuts. Listed in the #shortcuts dialog; keep both in sync.
 function visibleIds(): number[] {
   return [...els.list.children]
@@ -477,6 +520,9 @@ document.addEventListener('keydown', (e) => {
       break;
     case 'e':
       exportPalette();
+      break;
+    case 'v':
+      setVision(VISION_MODES[(VISION_MODES.indexOf(vision) + 1) % VISION_MODES.length]);
       break;
     case '/':
       els.search.focus();
