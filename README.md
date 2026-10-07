@@ -15,6 +15,7 @@ npm run dev        # development server
 npm test           # core tests
 npm run build      # static build in dist/ (relative base, can be hosted anywhere)
 npm run preview    # serve the build locally
+npm run cover      # regenerate the README cover (docs/cover.png)
 ```
 
 ## Usage
@@ -135,6 +136,14 @@ One row per colour of the combination, ordered from darkest to lightest (`Column
 File name: `sanzo-wada-042-d2-l2.gpl`; fixed spacing adds `-step8` and hue shift adds `-hue10`,
 for example `sanzo-wada-042-d2-l2-step8-hue10.gpl`.
 
+## README cover
+
+`docs/cover.png` is rendered from the project's own data by `npm run cover`. To change it, edit the combinations and
+shade settings at the top of `scripts/cover/cover.ts` (the layout is in `scripts/cover/index.html`), then run the command.
+It uses your installed Google Chrome; without it, run `npx playwright install chromium` once, or set `COVER_BROWSER` to
+a Chromium executable. The fonts are Bitstream Charter (or Charter / Georgia) and Inter (or the system sans serif),
+so the result can differ slightly between systems.
+
 ## Project structure
 
 ```
@@ -146,4 +155,5 @@ src/core/vision.ts         protanopia and deuteranopia simulation
 src/core/export/           pluggable exporters (gpl; other formats such as a hex list go here)
 src/main.ts, style.css     user interface
 tests/                     Vitest tests for the core
+scripts/cover/, make-cover.mjs   README cover page and the script that renders it
 ```

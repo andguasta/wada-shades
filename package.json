@@ -8,13 +8,15 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cover": "node scripts/make-cover.mjs"
   },
   "dependencies": {
     "culori": "^4.0.2"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
+    "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.3",
     "vitest": "^5.0.3"
