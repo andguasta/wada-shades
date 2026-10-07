@@ -1,5 +1,7 @@
 # Wada Shades
 
+![Wada Shades: shade ramps generated for 18 of Sanzo Wada's colour combinations](docs/cover.png)
+
 A static web app that generates lighter and darker shades for the 348 combinations in Sanzo Wada's
 *A Dictionary of Colour Combinations*, with a live preview and export to GIMP Palette (`.gpl`).
 
