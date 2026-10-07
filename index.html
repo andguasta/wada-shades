@@ -74,6 +74,14 @@
                 </span>
               </span>
             </div>
+            <label class="stepper">
+              <span>Hue shift</span>
+              <span class="stepper-box" title="Degrees of hue rotation per step: highlights towards yellow, shadows towards blue violet. 0 is off. (H, Shift+H)">
+                <button type="button" data-target="hue" data-delta="-2" aria-label="Less hue shift">−</button>
+                <input type="number" id="hue-shift" min="0" max="30" value="0" inputmode="numeric" aria-label="Hue shift in degrees per step" aria-keyshortcuts="H" />
+                <button type="button" data-target="hue" data-delta="2" aria-label="More hue shift">+</button>
+              </span>
+            </label>
             <div class="control">
               <span class="control-label">Vision</span>
               <div class="segmented vision" role="radiogroup" aria-label="Colour vision simulation" id="vision" title="Simulate colour blindness (V)" aria-keyshortcuts="V">
@@ -98,7 +106,7 @@
         </div>
         <section class="original" aria-label="Original combination" id="original" data-height="s"></section>
         <section class="preview" aria-label="Shade preview" id="preview"></section>
-        <p class="hint">Click a swatch to copy its hex, or a combination under a colour to open it. The outlined swatch is Wada&rsquo;s original colour, never altered.</p>
+        <p class="hint">Click a swatch to copy its hex, or a combination under a colour to open it. The outlined swatch is Wada&rsquo;s original colour, never altered. A swatch marked <span class="flag-sample">limit</span> had no room for a full step: it stops at the lightness limit, and the steps after it repeat the same colour.</p>
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -117,6 +125,8 @@
           <tr><td><kbd>Shift</kbd> <kbd>L</kbd></td><td>Fewer lighter steps</td></tr>
           <tr><td><kbd>S</kbd></td><td>Toggle spacing: spread, fixed</td></tr>
           <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Smaller / larger fixed step</td></tr>
+          <tr><td><kbd>H</kbd></td><td>More hue shift (+2°)</td></tr>
+          <tr><td><kbd>Shift</kbd> <kbd>H</kbd></td><td>Less hue shift (−2°)</td></tr>
           <tr><td><kbd>V</kbd></td><td>Cycle vision: normal, protan, deutan</td></tr>
           <tr><td><kbd>E</kbd></td><td>Export .gpl</td></tr>
           <tr><td><kbd>/</kbd></td><td>Search (name, number or #hex)</td></tr>

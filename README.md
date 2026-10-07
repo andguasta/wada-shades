@@ -25,7 +25,7 @@ npm run preview    # serve the build locally
 5. **Export .gpl** downloads the palette of the selected combination.
 6. The **S/M/L/XL** control above the original palette sets its height; the browser remembers the choice.
 
-The state lives in the URL (`#c=42&d=2&l=2`, plus `&s=8` for fixed spacing), so a configuration can be bookmarked or shared.
+The state lives in the URL (`#c=42&d=2&l=2`, plus `&s=8` for fixed spacing and `&h=10` for hue shift), so a configuration can be bookmarked or shared.
 The browser's Back button returns to the previous combination.
 
 ### Search by colour
@@ -52,6 +52,7 @@ It only changes the view: displayed hex values, copies and exports always keep t
 | `L` / `Shift+L` | One more / one fewer lighter step |
 | `S` | Toggle spacing: spread, fixed |
 | `[` / `]` | Smaller / larger fixed step |
+| `H` / `Shift+H` | More / less hue shift (2° per press) |
 | `V` | Cycle vision: normal, protan, deutan |
 | `E` | Export .gpl |
 | `/` | Focus the search |
@@ -98,11 +99,14 @@ Shades are computed in **OKLCH**, a perceptually uniform colour space:
     (`L = L_base + (limit − L_base) · i / (n + 1)`). The steps always use the colour's whole range, so few steps are far apart,
     and a colour close to a limit gets small steps on that side.
   * **Fixed**: every step changes lightness by the same amount on every colour, set from 2 to 20 (OKLCH lightness × 100,
-    default 8). Good for close, even ramps such as pixel art shading. When a colour has no room for that amount,
-    its steps shrink to the spread spacing, so they never pile up at the limit.
+    default 8). Good for close, even ramps such as pixel art shading. A step that would pass the limit stops at it,
+    and the steps after it repeat that same colour.
 
-  Either way no step reaches pure white or black.
-* **Hue:** constant.
+  A step that could not move its full amount (it stopped at the limit, or the base is already there, like White)
+  is marked **limit** in the preview.
+* **Hue:** constant by default. With **Hue shift** (0 to 30 degrees per step), each step rotates hue the short way round:
+  lighter steps towards warm yellow (OKLCH hue 100°) and darker steps towards blue violet (280°), the hue shifting used in
+  pixel art. The rotation stops at the target hue, and greys, which have no hue, are unchanged.
 * **Chroma:** reduced as `C = C0 · (1 − t²)`, where `t` is how far the step is towards the limit (0 at the base, 1 at the limit),
   since white and black have no chroma; it stays almost full near the base colour.
 * **Gamut:** colours outside sRGB are brought back by reducing chroma only, keeping L and H
@@ -126,7 +130,8 @@ Columns: 5
 ```
 
 One row per colour of the combination, ordered from darkest to lightest (`Columns` = total steps per row).
-File name: `sanzo-wada-042-d2-l2.gpl`, or `sanzo-wada-042-d2-l2-step8.gpl` with fixed spacing.
+File name: `sanzo-wada-042-d2-l2.gpl`; fixed spacing adds `-step8` and hue shift adds `-hue10`,
+for example `sanzo-wada-042-d2-l2-step8-hue10.gpl`.
 
 ## Project structure
 

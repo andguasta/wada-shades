@@ -7,7 +7,9 @@ import {
   DEFAULT_STEP_SIZE,
   MAX_STEP_SIZE,
   MAX_STEPS,
+  MAX_HUE_SHIFT,
   MIN_STEP_SIZE,
+  type ScaleOptions,
   type Shade,
   type Spacing,
 } from './core/shades';
@@ -20,6 +22,8 @@ interface State {
   spacingMode: Spacing['mode'];
   /** Fixed step size as OKLCH lightness × 100, kept while spread is active. */
   stepSize: number;
+  /** Hue rotation in degrees per step; 0 is off. */
+  hueShift: number;
   size: number;
   query: string;
   /** In colour search, the dataset index of the one match the list is narrowed to. */
@@ -45,6 +49,7 @@ const els = {
   darker: $<HTMLInputElement>('darker'),
   spacing: $<HTMLSpanElement>('spacing'),
   stepSize: $<HTMLInputElement>('step-size'),
+  hueShift: $<HTMLInputElement>('hue-shift'),
   exportBtn: $<HTMLButtonElement>('export'),
   original: $<HTMLElement>('original'),
   originalSize: $<HTMLDivElement>('original-size'),
@@ -56,6 +61,7 @@ const els = {
 const clampSteps = (n: number) => (Number.isFinite(n) ? Math.min(MAX_STEPS, Math.max(0, Math.round(n))) : 0);
 const MIN_STEP = Math.round(MIN_STEP_SIZE * 100);
 const MAX_STEP = Math.round(MAX_STEP_SIZE * 100);
+const clampHue = (n: number) => (Number.isFinite(n) ? Math.min(MAX_HUE_SHIFT, Math.max(0, Math.round(n))) : 0);
 const clampStep = (n: number) =>
   Number.isFinite(n) ? Math.min(MAX_STEP, Math.max(MIN_STEP, Math.round(n))) : Math.round(DEFAULT_STEP_SIZE * 100);
 
@@ -69,6 +75,7 @@ function readHash(): Partial<State> {
   // s=<size> means fixed spacing; no s means spread.
   out.spacingMode = params.has('s') ? 'fixed' : 'spread';
   if (params.has('s')) out.stepSize = clampStep(Number(params.get('s')));
+  out.hueShift = params.has('h') ? clampHue(Number(params.get('h'))) : 0;
   return out;
 }
 
@@ -78,14 +85,17 @@ const state: State = {
   darker: 2,
   spacingMode: 'spread',
   stepSize: Math.round(DEFAULT_STEP_SIZE * 100),
+  hueShift: 0,
   size: 0,
   query: '',
   matchFocus: null,
   ...readHash(),
 };
 
-function spacing(): Spacing {
-  return state.spacingMode === 'fixed' ? { mode: 'fixed', size: state.stepSize / 100 } : { mode: 'spread' };
+function scaleOptions(): ScaleOptions {
+  const spacing: Spacing =
+    state.spacingMode === 'fixed' ? { mode: 'fixed', size: state.stepSize / 100 } : { mode: 'spread' };
+  return { spacing, hueShift: state.hueShift };
 }
 
 const MATCH_LIMIT = 5;
@@ -93,7 +103,8 @@ const MATCH_LIMIT = 5;
 /** push adds a history entry, so Back returns to the previous combination. */
 function writeHash(push = false) {
   const fixed = state.spacingMode === 'fixed' ? `&s=${state.stepSize}` : '';
-  const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}${fixed}`;
+  const hue = state.hueShift > 0 ? `&h=${state.hueShift}` : '';
+  const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}${fixed}${hue}`;
   if (location.hash === hash) return;
   if (push) history.pushState(null, '', hash);
   else history.replaceState(null, '', hash);
@@ -230,6 +241,10 @@ function swatch(shade: Shade): HTMLButtonElement {
   el.style.color = inkFor(shade.rgb);
   el.dataset.hex = shade.hex;
   el.title = `${shade.name}\n${shade.hex}\nRGB ${shade.rgb.join(' ')}`;
+  if (shade.limited) {
+    el.classList.add('swatch-limited');
+    el.title += '\nNo room for a full step: stopped at the lightness limit (repeats the neighbouring colour).';
+  }
   const label = document.createElement('span');
   label.className = 'swatch-label';
   label.textContent = shade.kind === 'base' ? 'base' : `${shade.kind === 'dark' ? 'D' : 'L'}${shade.step}`;
@@ -237,6 +252,12 @@ function swatch(shade: Shade): HTMLButtonElement {
   hex.className = 'swatch-hex';
   hex.textContent = shade.hex;
   el.append(label, hex);
+  if (shade.limited) {
+    const flag = document.createElement('span');
+    flag.className = 'swatch-flag';
+    flag.textContent = 'limit';
+    el.append(flag);
+  }
   return el;
 }
 
@@ -281,11 +302,12 @@ function render(push = false) {
   );
 
   els.stepSize.value = String(state.stepSize);
+  els.hueShift.value = String(state.hueShift);
   els.stepSize.closest('.stepper-box')!.classList.toggle('inactive', state.spacingMode !== 'fixed');
   for (const btn of els.spacing.querySelectorAll<HTMLButtonElement>('button')) {
     btn.setAttribute('aria-checked', String(btn.dataset.spacing === state.spacingMode));
   }
-  const palette = buildPalette(combo, state.lighter, state.darker, spacing());
+  const palette = buildPalette(combo, state.lighter, state.darker, scaleOptions());
   els.preview.style.setProperty('--cols', String(state.darker + state.lighter + 1));
   els.preview.replaceChildren(
     ...palette.scales.map((scale) => {
@@ -315,11 +337,11 @@ function toast(message: string) {
 function exportPalette() {
   const combo = getCombination(state.comboId)!;
   const exporter = exporters[0];
-  const text = exporter.serialize(buildPalette(combo, state.lighter, state.darker, spacing()));
+  const text = exporter.serialize(buildPalette(combo, state.lighter, state.darker, scaleOptions()));
   const url = URL.createObjectURL(new Blob([text], { type: exporter.mimeType }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = paletteFileName(combo, state.lighter, state.darker, exporter.extension, spacing());
+  a.download = paletteFileName(combo, state.lighter, state.darker, exporter.extension, scaleOptions());
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
@@ -335,6 +357,11 @@ function setSpacing(mode: Spacing['mode']) {
 }
 
 /** Changing the step size implies fixed spacing. */
+function setHueShift(value: number) {
+  state.hueShift = clampHue(value);
+  render();
+}
+
 function setStepSize(value: number) {
   state.stepSize = clampStep(value);
   state.spacingMode = 'fixed';
@@ -409,12 +436,17 @@ document.querySelectorAll<HTMLButtonElement>('.stepper-box button').forEach((btn
       setStepSize(state.stepSize + delta);
       return;
     }
+    if (btn.dataset.target === 'hue') {
+      setHueShift(state.hueShift + delta);
+      return;
+    }
     const key = btn.dataset.target as 'lighter' | 'darker';
     setSteps(key, state[key] + delta);
   });
 });
 
 els.stepSize.addEventListener('change', () => setStepSize(Number(els.stepSize.value)));
+els.hueShift.addEventListener('change', () => setHueShift(Number(els.hueShift.value)));
 
 els.spacing.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
@@ -592,6 +624,12 @@ document.addEventListener('keydown', (e) => {
       break;
     case ']':
       setStepSize(state.stepSize + 1);
+      break;
+    case 'h':
+      setHueShift(state.hueShift + 2);
+      break;
+    case 'H':
+      setHueShift(state.hueShift - 2);
       break;
     case 'v':
       setVision(VISION_MODES[(VISION_MODES.indexOf(vision) + 1) % VISION_MODES.length]);

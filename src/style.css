@@ -345,6 +345,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
 }
 .swatch-base { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); z-index: 1; }
 .swatch-label { opacity: 0.8; }
+.swatch-flag,
+.flag-sample {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.swatch-flag { position: absolute; top: 6px; right: 6px; }
+.flag-sample { font-size: 9px; vertical-align: 1px; }
 .swatch-hex { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 0.02em; }
 
 .related { margin-top: 8px; }
@@ -387,6 +399,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
   .main { padding: 20px 16px 32px; overflow: visible; }
   .swatch { min-height: 64px; padding: 6px; font-size: 10px; }
   .swatch-hex { writing-mode: vertical-rl; transform: rotate(180deg); align-self: flex-start; }
+  .swatch-flag { top: auto; bottom: 4px; right: 3px; padding: 1px 3px; font-size: 8px; }
 }
 
 /* Same height for every toolbar control so their labels line up. */

@@ -4,7 +4,7 @@ import { colors, combinations, getCombination, NAME_FIXES, relatedCombinations }
 import { toGpl } from '../src/core/export/gpl';
 import { buildPalette, paletteFileName } from '../src/core/palette';
 import { nearestColors, parseHexColor } from '../src/core/nearest';
-import { buildScale, MAX_STEPS, MAX_STEP_SIZE, MIN_STEP_SIZE } from '../src/core/shades';
+import { buildScale, MAX_STEPS, MAX_STEP_SIZE, MIN_STEP_SIZE, rotateHueTowards } from '../src/core/shades';
 import { feColorMatrixValues, simulate } from '../src/core/vision';
 
 const toOklch = converter('oklch');
@@ -98,7 +98,7 @@ describe('buildScale', () => {
 });
 
 describe('fixed spacing', () => {
-  const fixed = (size: number) => ({ mode: 'fixed', size }) as const;
+  const fixed = (size: number) => ({ spacing: { mode: 'fixed', size }, hueShift: 0 }) as const;
 
   it('moves lightness by the fixed amount when the colour has room', () => {
     const violet = colors.find((c) => c.name === 'Violet')!;
@@ -118,17 +118,68 @@ describe('fixed spacing', () => {
     expect(close[2] - close[0]).toBeLessThan(spread[2] - spread[0]);
   });
 
-  it('shrinks steps instead of piling them up when the colour lacks room', () => {
+  it('stops at the limit and repeats that colour when the colour lacks room', () => {
+    const paleLemon = colors.find((c) => c.name === 'Pale Lemon Yellow')!; // L ≈ 0.95, room ≈ 0.04
+    const lights = buildScale(paleLemon, 4, 0, fixed(0.08)).shades.slice(1);
+    expect(lights.map((s) => s.limited)).toEqual([true, true, true, true]);
+    expect(new Set(lights.map((s) => s.hex)).size).toBe(1);
+    expect(lightness(lights[0].hex)).toBeCloseTo(0.99, 2);
+  });
+
+  it('flags exactly the steps that could not move their full amount', () => {
     for (const color of colors) {
       for (const size of [MIN_STEP_SIZE, 0.08, MAX_STEP_SIZE]) {
         const { shades } = buildScale(color, 4, 4, fixed(size));
         expect(shades[4].hex).toBe(color.hex);
         const ls = shades.map((s) => lightness(s.hex));
         for (let i = 1; i < ls.length; i++) {
-          if (color.hex === '#ffffff' && i > 4) expect(shades[i].hex).toBe('#ffffff');
-          else expect(ls[i]).toBeGreaterThan(ls[i - 1]);
+          // Never darker towards the light end; a repeat only where a step is limited.
+          expect(ls[i]).toBeGreaterThanOrEqual(ls[i - 1] - 1e-9);
+          if (shades[i].hex === shades[i - 1].hex) expect(shades[i].limited || shades[i - 1].limited).toBe(true);
         }
       }
+    }
+  });
+
+  it('never flags spread steps unless the base is at a limit', () => {
+    for (const color of colors) {
+      const flagged = buildScale(color, 3, 3).shades.filter((s) => s.limited);
+      if (color.hex === '#ffffff') expect(flagged.map((s) => s.kind)).toEqual(['light', 'light', 'light']);
+      else expect(flagged).toHaveLength(0);
+    }
+  });
+});
+
+describe('hue shift', () => {
+  const hueDiff = (a: number, b: number) => ((b - a + 540) % 360) - 180;
+
+  it('rotates towards the target the short way and never overshoots', () => {
+    expect(rotateHueTowards(60, 100, 10)).toBe(70);
+    expect(rotateHueTowards(60, 100, 90)).toBe(100);
+    expect(rotateHueTowards(350, 280, 20)).toBe(330);
+    expect(rotateHueTowards(10, 280, 20)).toBe(350); // across 0°
+  });
+
+  it('moves highlights towards yellow and shadows towards blue violet, keeping the base', () => {
+    const red = colors.find((c) => c.name === 'Spectrum Red')!;
+    const base = toOklch(red.hex)!;
+    const { shades } = buildScale(red, 2, 2, { spacing: { mode: 'fixed', size: 0.08 }, hueShift: 10 });
+    expect(shades[2].hex).toBe(red.hex);
+    const hueOf = (i: number) => toOklch(shades[i].hex)!.h!;
+    // Red sits around 25-30°: yellow (100°) is ahead, blue violet (280°) is behind.
+    expect(hueDiff(base.h!, hueOf(3))).toBeGreaterThan(5);
+    expect(hueDiff(base.h!, hueOf(4))).toBeGreaterThan(hueDiff(base.h!, hueOf(3)));
+    expect(hueDiff(base.h!, hueOf(1))).toBeLessThan(-5);
+    expect(hueDiff(base.h!, hueOf(0))).toBeLessThan(hueDiff(base.h!, hueOf(1)));
+  });
+
+  it('leaves greys unchanged and matches no shift at 0', () => {
+    const white = colors.find((c) => c.name === 'White')!;
+    expect(buildScale(white, 2, 2, { spacing: { mode: 'spread' }, hueShift: 20 }).shades.map((s) => s.hex)).toEqual(
+      buildScale(white, 2, 2).shades.map((s) => s.hex),
+    );
+    for (const color of colors.slice(0, 20)) {
+      expect(buildScale(color, 2, 2, { spacing: { mode: 'spread' }, hueShift: 0 })).toEqual(buildScale(color, 2, 2));
     }
   });
 });
@@ -150,8 +201,11 @@ describe('gpl export', () => {
 
   it('builds a descriptive file name', () => {
     expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl')).toBe('sanzo-wada-042-d3-l2.gpl');
-    expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl', { mode: 'fixed', size: 0.08 })).toBe(
-      'sanzo-wada-042-d3-l2-step8.gpl',
+    expect(
+      paletteFileName(getCombination(42)!, 2, 3, 'gpl', { spacing: { mode: 'fixed', size: 0.08 }, hueShift: 0 }),
+    ).toBe('sanzo-wada-042-d3-l2-step8.gpl');
+    expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl', { spacing: { mode: 'spread' }, hueShift: 10 })).toBe(
+      'sanzo-wada-042-d3-l2-hue10.gpl',
     );
   });
 });
