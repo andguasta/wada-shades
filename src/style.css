@@ -186,14 +186,29 @@ input[type='search'] {
 
 button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
+.original-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.original-label { color: var(--muted); font-size: 12px; }
+.segmented.compact { grid-template-columns: repeat(4, 36px); font-size: 12px; }
+.segmented.compact button { padding: 3px 0; }
+
 .original {
   display: flex;
   height: 56px;
+  transition: height 0.15s ease;
   border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 24px;
 }
 .original > div { flex: 1; }
+.original[data-height='m'] { height: 140px; }
+.original[data-height='l'] { height: min(260px, 35vh); }
+.original[data-height='xl'] { height: min(420px, 55vh); }
 
 .preview { display: grid; gap: 28px; }
 

@@ -25,6 +25,7 @@ const els = {
   darker: $<HTMLInputElement>('darker'),
   exportBtn: $<HTMLButtonElement>('export'),
   original: $<HTMLElement>('original'),
+  originalSize: $<HTMLDivElement>('original-size'),
   preview: $<HTMLElement>('preview'),
   toast: $<HTMLDivElement>('toast'),
   main: document.querySelector('.main') as HTMLElement,
@@ -295,6 +296,34 @@ els.preview.addEventListener('click', async (e) => {
 });
 
 els.exportBtn.addEventListener('click', exportPalette);
+
+// Height of the original palette strip: a per-browser preference, kept out of the URL.
+const ORIGINAL_HEIGHTS = ['s', 'm', 'l', 'xl'];
+const ORIGINAL_HEIGHT_KEY = 'wada-shades:original-height';
+
+function setOriginalHeight(height: string) {
+  if (!ORIGINAL_HEIGHTS.includes(height)) return;
+  els.original.dataset.height = height;
+  for (const btn of els.originalSize.querySelectorAll<HTMLButtonElement>('button')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.height === height));
+  }
+  try {
+    localStorage.setItem(ORIGINAL_HEIGHT_KEY, height);
+  } catch {
+    // Storage unavailable (private mode, blocked): the choice lasts for this page only.
+  }
+}
+
+try {
+  setOriginalHeight(localStorage.getItem(ORIGINAL_HEIGHT_KEY) ?? 's');
+} catch {
+  // Keep the default height.
+}
+
+els.originalSize.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+  if (btn?.dataset.height) setOriginalHeight(btn.dataset.height);
+});
 
 window.addEventListener('hashchange', () => {
   Object.assign(state, readHash());

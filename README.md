@@ -17,6 +17,7 @@ npm run build      # build statica in dist/ (base relativa, pubblicabile ovunque
 3. Controlla l'anteprima: il colore originale di Wada è evidenziato e non viene mai modificato. Un clic su una tinta ne copia l'hex.
 4. Sotto ogni colore ci sono le altre combinazioni che lo usano: un clic apre la combinazione mantenendo i passi impostati.
 5. **Export .gpl** scarica la palette della combinazione selezionata.
+6. Il selettore **S/M/L/XL** sopra la palette originale ne regola l'altezza; la scelta viene ricordata dal browser.
 
 Lo stato è nell'URL (`#c=42&d=2&l=2`), quindi una configurazione si può salvare o condividere.
 Il tasto Indietro del browser torna alla combinazione precedente.
