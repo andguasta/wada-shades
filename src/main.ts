@@ -1,5 +1,5 @@
 import './style.css';
-import { combinations, getCombination, type Combination } from './core/data';
+import { combinations, getCombination, relatedCombinations, type Combination } from './core/data';
 import { exporters } from './core/export';
 import { buildPalette, comboTitle, paletteFileName } from './core/palette';
 import { MAX_STEPS, type Shade } from './core/shades';
@@ -27,6 +27,7 @@ const els = {
   original: $<HTMLElement>('original'),
   preview: $<HTMLElement>('preview'),
   toast: $<HTMLDivElement>('toast'),
+  main: document.querySelector('.main') as HTMLElement,
 };
 
 const clampSteps = (n: number) => (Number.isFinite(n) ? Math.min(MAX_STEPS, Math.max(0, Math.round(n))) : 0);
@@ -43,9 +44,12 @@ function readHash(): Partial<State> {
 
 const state: State = { comboId: 1, lighter: 2, darker: 2, size: 0, query: '', ...readHash() };
 
-function writeHash() {
+/** push adds a history entry, so Back returns to the previous combination. */
+function writeHash(push = false) {
   const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}`;
-  if (location.hash !== hash) history.replaceState(null, '', hash);
+  if (location.hash === hash) return;
+  if (push) history.pushState(null, '', hash);
+  else history.replaceState(null, '', hash);
 }
 
 /** Black or white text, whichever reads better on the swatch. */
@@ -63,32 +67,40 @@ function matches(combo: Combination): boolean {
   const q = state.query.trim().toLowerCase();
   if (!q) return true;
   if (/^\d+$/.test(q)) return String(combo.id).startsWith(q);
-  return combo.colors.some((c) => c.name.toLowerCase().includes(q) || c.hex.includes(q));
+  return combo.colors.some(
+    (c) => c.name.toLowerCase().includes(q) || c.sourceName.toLowerCase().includes(q) || c.hex.includes(q),
+  );
 }
 
 const listItems = new Map<number, HTMLLIElement>();
+
+/** Button with the combination number and its colours; data-id drives navigation. */
+function comboButton(combo: Combination, className: string): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = className;
+  btn.dataset.id = String(combo.id);
+  btn.setAttribute('aria-label', `${comboTitle(combo.id)}: ${combo.colors.map((c) => c.name).join(', ')}`);
+  btn.title = combo.colors.map((c) => c.name).join(' · ');
+  const num = document.createElement('span');
+  num.className = 'combo-num';
+  num.textContent = String(combo.id).padStart(3, '0');
+  const strip = document.createElement('span');
+  strip.className = 'strip';
+  for (const c of combo.colors) {
+    const s = document.createElement('span');
+    s.style.background = c.hex;
+    strip.append(s);
+  }
+  btn.append(num, strip);
+  return btn;
+}
 
 function renderList() {
   const frag = document.createDocumentFragment();
   for (const combo of combinations) {
     const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'combo-item';
-    btn.dataset.id = String(combo.id);
-    btn.setAttribute('aria-label', `${comboTitle(combo.id)}: ${combo.colors.map((c) => c.name).join(', ')}`);
-    const num = document.createElement('span');
-    num.className = 'combo-num';
-    num.textContent = String(combo.id).padStart(3, '0');
-    const strip = document.createElement('span');
-    strip.className = 'strip';
-    for (const c of combo.colors) {
-      const s = document.createElement('span');
-      s.style.background = c.hex;
-      strip.append(s);
-    }
-    btn.append(num, strip);
-    li.append(btn);
+    li.append(comboButton(combo, 'combo-item'));
     listItems.set(combo.id, li);
     frag.append(li);
   }
@@ -126,7 +138,26 @@ function swatch(shade: Shade): HTMLButtonElement {
   return el;
 }
 
-function render() {
+function relatedFor(color: Combination['colors'][number], comboId: number): HTMLElement {
+  const related = relatedCombinations(color, comboId);
+  const wrap = document.createElement('div');
+  wrap.className = 'related';
+  const label = document.createElement('span');
+  label.className = 'related-label';
+  label.textContent = related.length
+    ? `Also in ${related.length} ${related.length === 1 ? 'combination' : 'combinations'}`
+    : 'Only in this combination';
+  wrap.append(label);
+  if (related.length) {
+    const list = document.createElement('div');
+    list.className = 'related-list';
+    list.append(...related.map((c) => comboButton(c, 'related-item')));
+    wrap.append(list);
+  }
+  return wrap;
+}
+
+function render(push = false) {
   const combo = getCombination(state.comboId)!;
   els.lighter.value = String(state.lighter);
   els.darker.value = String(state.darker);
@@ -159,11 +190,11 @@ function render() {
       const swatches = document.createElement('div');
       swatches.className = 'scale-swatches';
       swatches.append(...scale.shades.map(swatch));
-      row.append(name, swatches);
+      row.append(name, swatches, relatedFor(scale.base, combo.id));
       return row;
     }),
   );
-  writeHash();
+  writeHash(push);
 }
 
 let toastTimer = 0;
@@ -198,11 +229,26 @@ render();
 const current = listItems.get(state.comboId);
 if (current) els.list.scrollTop = current.offsetTop - els.list.clientHeight / 2;
 
+function goTo(id: number) {
+  if (id === state.comboId || !getCombination(id)) return;
+  state.comboId = id;
+  render(true);
+}
+
+/** Bring the current combination into view in the sidebar, if the filters show it. */
+function revealInList() {
+  const li = listItems.get(state.comboId);
+  if (!li || li.hidden) return;
+  const top = li.offsetTop;
+  const bottom = top + li.offsetHeight;
+  if (top < els.list.scrollTop || bottom > els.list.scrollTop + els.list.clientHeight) {
+    els.list.scrollTop = top - els.list.clientHeight / 2;
+  }
+}
+
 els.list.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.combo-item');
-  if (!btn) return;
-  state.comboId = Number(btn.dataset.id);
-  render();
+  if (btn) goTo(Number(btn.dataset.id));
 });
 
 els.sizeFilter.addEventListener('click', (e) => {
@@ -229,7 +275,16 @@ for (const key of ['lighter', 'darker'] as const) {
 }
 
 els.preview.addEventListener('click', async (e) => {
-  const el = (e.target as HTMLElement).closest<HTMLButtonElement>('.swatch');
+  const target = e.target as HTMLElement;
+  const related = target.closest<HTMLButtonElement>('.related-item');
+  if (related) {
+    goTo(Number(related.dataset.id));
+    revealInList();
+    els.main.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+    return;
+  }
+  const el = target.closest<HTMLButtonElement>('.swatch');
   if (!el?.dataset.hex) return;
   try {
     await navigator.clipboard.writeText(el.dataset.hex);
@@ -244,4 +299,5 @@ els.exportBtn.addEventListener('click', exportPalette);
 window.addEventListener('hashchange', () => {
   Object.assign(state, readHash());
   render();
+  revealInList();
 });

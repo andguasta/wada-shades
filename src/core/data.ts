@@ -4,7 +4,10 @@ import rawColors from '../data/colors.json';
 export interface WadaColor {
   /** Position in the dataset, stable identifier. */
   index: number;
+  /** Corrected name (see NAME_FIXES). */
   name: string;
+  /** Name exactly as in the source dataset. */
+  sourceName: string;
   hex: string;
   rgb: [number, number, number];
   cmyk: [number, number, number, number];
@@ -28,9 +31,34 @@ interface RawColor {
   combinations: number[];
 }
 
+/**
+ * Spelling fixes applied on top of the untouched source dataset.
+ * Wada's names come from Robert Ridgway's "Color Standards and Color
+ * Nomenclature" (1912); misspellings are restored to Ridgway's spelling,
+ * and the A/B variants use one consistent suffix format.
+ */
+export const NAME_FIXES: Readonly<Record<string, string>> = {
+  'Eugenia Red | A': 'Eugenia Red A',
+  'Eugenia Red | B': 'Eugenia Red B',
+  'Grayish Lavender - A': 'Grayish Lavender A',
+  'Grayish Lavender - B': 'Grayish Lavender B',
+  'Rosolanc Purple': 'Rosolane Purple',
+  'Pomegranite Purple': 'Pomegranate Purple',
+  'Vistoris Lake': 'Victoria Lake',
+  'Sulpher Yellow': 'Sulphur Yellow',
+  'Krongbergs Green': "Kronberg's Green",
+  'Artemesia Green': 'Artemisia Green',
+  'Calamine BLue': 'Calamine Blue',
+  'Cerulian Blue': 'Cerulean Blue',
+  'Antwarp Blue': 'Antwerp Blue',
+  "Vandar Poel's Blue": "Vanderpoel's Blue",
+  'Veronia Purple': 'Vernonia Purple',
+};
+
 export const colors: WadaColor[] = (rawColors as RawColor[]).map((c, index) => ({
   index,
-  name: c.name,
+  name: NAME_FIXES[c.name] ?? c.name,
+  sourceName: c.name,
   hex: c.hex.toLowerCase(),
   rgb: [c.rgb[0], c.rgb[1], c.rgb[2]],
   cmyk: [c.cmyk[0], c.cmyk[1], c.cmyk[2], c.cmyk[3]],
@@ -53,6 +81,16 @@ export const combinations: Combination[] = (() => {
     .map(([id, list]) => ({ id, colors: list }));
 })();
 
+const combinationById = new Map(combinations.map((c) => [c.id, c]));
+
 export function getCombination(id: number): Combination | undefined {
-  return combinations.find((c) => c.id === id);
+  return combinationById.get(id);
+}
+
+/** The other combinations that use this colour, sorted by id. */
+export function relatedCombinations(color: WadaColor, excludeId?: number): Combination[] {
+  return color.combinations
+    .filter((id) => id !== excludeId)
+    .sort((a, b) => a - b)
+    .map((id) => combinationById.get(id)!);
 }

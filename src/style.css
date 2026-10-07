@@ -195,7 +195,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
 }
 .original > div { flex: 1; }
 
-.preview { display: grid; gap: 18px; }
+.preview { display: grid; gap: 28px; }
 
 .scale-name { margin-bottom: 6px; font-weight: 500; }
 
@@ -222,6 +222,22 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
 .swatch-base { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); z-index: 1; }
 .swatch-label { opacity: 0.8; }
 .swatch-hex { font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 0.02em; }
+
+.related { margin-top: 8px; }
+.related-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; }
+.related-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.related-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+.related-item:hover { border-color: var(--text); }
+.related-item .strip { width: 52px; height: 14px; border-radius: 2px; }
 
 .hint { margin-top: 24px; color: var(--muted); font-size: 12px; }
 

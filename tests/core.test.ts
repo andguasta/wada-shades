@@ -1,6 +1,6 @@
 import { converter } from 'culori';
 import { describe, expect, it } from 'vitest';
-import { colors, combinations, getCombination } from '../src/core/data';
+import { colors, combinations, getCombination, NAME_FIXES, relatedCombinations } from '../src/core/data';
 import { toGpl } from '../src/core/export/gpl';
 import { buildPalette, paletteFileName } from '../src/core/palette';
 import { buildScale, MAX_STEPS } from '../src/core/shades';
@@ -16,6 +16,31 @@ describe('dataset', () => {
     for (const c of combinations) {
       expect(c.colors.length).toBeGreaterThanOrEqual(2);
       expect(c.colors.length).toBeLessThanOrEqual(4);
+    }
+  });
+});
+
+describe('names', () => {
+  it('applies every fix to an existing source name and keeps names unique', () => {
+    const sourceNames = new Set(colors.map((c) => c.sourceName));
+    for (const wrong of Object.keys(NAME_FIXES)) expect(sourceNames.has(wrong)).toBe(true);
+    expect(new Set(colors.map((c) => c.name)).size).toBe(colors.length);
+    expect(colors.find((c) => c.sourceName === 'Calamine BLue')!.name).toBe('Calamine Blue');
+  });
+});
+
+describe('relatedCombinations', () => {
+  it('lists the other combinations containing the colour', () => {
+    for (const combo of combinations) {
+      for (const color of combo.colors) {
+        const related = relatedCombinations(color, combo.id);
+        expect(related).toHaveLength(color.combinations.length - 1);
+        for (const r of related) {
+          expect(r.id).not.toBe(combo.id);
+          expect(r.colors).toContain(color);
+        }
+        expect(related.map((r) => r.id)).toEqual([...related.map((r) => r.id)].sort((a, b) => a - b));
+      }
     }
   });
 });

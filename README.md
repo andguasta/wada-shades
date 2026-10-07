@@ -15,9 +15,11 @@ npm run build      # build statica in dist/ (base relativa, pubblicabile ovunque
 1. Scegli una combinazione dalla lista (filtri per numero di colori, ricerca per nome, hex o numero).
 2. Imposta quanti passi **Darker** e **Lighter** generare (da 0 a 10 per lato).
 3. Controlla l'anteprima: il colore originale di Wada è evidenziato e non viene mai modificato. Un clic su una tinta ne copia l'hex.
-4. **Export .gpl** scarica la palette della combinazione selezionata.
+4. Sotto ogni colore ci sono le altre combinazioni che lo usano: un clic apre la combinazione mantenendo i passi impostati.
+5. **Export .gpl** scarica la palette della combinazione selezionata.
 
 Lo stato è nell'URL (`#c=42&d=2&l=2`), quindi una configurazione si può salvare o condividere.
+Il tasto Indietro del browser torna alla combinazione precedente.
 
 ## Dati
 
@@ -25,6 +27,27 @@ Lo stato è nell'URL (`#c=42&d=2&l=2`), quindi una configurazione si può salvar
 (MIT, licenza in `src/data/`). È lo stesso dataset usato da bravokiloecho/color-combinations-sanzo-wada-public:
 159 colori convertiti da CMYK con profili ICC (U.S. Web Coated SWOP v2 → sRGB), più fedeli alla stampa
 rispetto ai valori originali di dblodorn/sanzo-wada. Il file è copiato senza modifiche.
+
+I nomi di Wada derivano da *Color Standards and Color Nomenclature* di Robert Ridgway (1912).
+I refusi del dataset sono corretti in `NAME_FIXES` (`src/core/data.ts`), non nel JSON, quindi la fonte resta verificabile:
+
+| Dataset | Corretto |
+| --- | --- |
+| Rosolanc Purple | Rosolane Purple |
+| Pomegranite Purple | Pomegranate Purple |
+| Vistoris Lake | Victoria Lake |
+| Sulpher Yellow | Sulphur Yellow |
+| Krongbergs Green | Kronberg's Green |
+| Artemesia Green | Artemisia Green |
+| Calamine BLue | Calamine Blue |
+| Cerulian Blue | Cerulean Blue |
+| Antwarp Blue | Antwerp Blue |
+| Vandar Poel's Blue | Vanderpoel's Blue |
+| Veronia Purple | Vernonia Purple |
+| Eugenia Red \| A, Eugenia Red \| B | Eugenia Red A, Eugenia Red B |
+| Grayish Lavender - A, Grayish Lavender - B | Grayish Lavender A, Grayish Lavender B |
+
+La ricerca trova i colori sia con il nome corretto sia con quello originale.
 
 ## Algoritmo delle tinte (`src/core/shades.ts`)
 
@@ -61,7 +84,7 @@ Nome file: `sanzo-wada-042-d2-l2.gpl`.
 ## Struttura
 
 ```
-src/core/data.ts           dataset e costruzione delle 348 combinazioni
+src/core/data.ts           dataset, correzioni dei nomi, 348 combinazioni e combinazioni correlate
 src/core/shades.ts         generazione delle tinte
 src/core/palette.ts        palette di una combinazione, titolo e nome file
 src/core/export/           exporter intercambiabili (gpl; altri formati, es. lista hex, si aggiungono qui)
