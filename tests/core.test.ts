@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { colors, combinations, getCombination, NAME_FIXES, relatedCombinations } from '../src/core/data';
 import { toGpl } from '../src/core/export/gpl';
 import { buildPalette, paletteFileName } from '../src/core/palette';
+import { nearestColors, parseHexColor } from '../src/core/nearest';
 import { buildScale, MAX_STEPS } from '../src/core/shades';
 
 const toOklch = converter('oklch');
@@ -112,5 +113,31 @@ describe('gpl export', () => {
 
   it('builds a descriptive file name', () => {
     expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl')).toBe('sanzo-wada-042-d3-l2.gpl');
+  });
+});
+
+describe('nearestColors', () => {
+  it('parses full hex colours only', () => {
+    expect(parseHexColor('#ABC')).toBe('#aabbcc');
+    expect(parseHexColor(' aabbcc ')).toBe('#aabbcc');
+    expect(parseHexColor('#aabbcc')).toBe('#aabbcc');
+    expect(parseHexColor('abc')).toBeNull();
+    expect(parseHexColor('123')).toBeNull();
+    expect(parseHexColor('#12345')).toBeNull();
+    expect(parseHexColor('blue')).toBeNull();
+  });
+
+  it('finds an exact dataset colour first with zero distance', () => {
+    for (const color of colors) {
+      const [first] = nearestColors(color.hex, 1);
+      expect(first.deltaE).toBeCloseTo(0, 6);
+      expect(first.color.hex).toBe(color.hex);
+    }
+  });
+
+  it('returns matches sorted by distance', () => {
+    const matches = nearestColors('#3a5f8b', 5);
+    expect(matches).toHaveLength(5);
+    for (let i = 1; i < matches.length; i++) expect(matches[i].deltaE).toBeGreaterThanOrEqual(matches[i - 1].deltaE);
   });
 });

@@ -21,10 +21,20 @@
             <button type="button" role="radio" data-size="3" aria-checked="false">3</button>
             <button type="button" role="radio" data-size="4" aria-checked="false">4</button>
           </div>
-          <input type="search" id="search" placeholder="Search colour name or number" aria-label="Search combinations" />
+          <div class="search-row">
+            <span class="search-box">
+              <input type="search" id="search" placeholder="Name, number or #hex" aria-label="Search combinations by colour name, number or hex" aria-keyshortcuts="/" />
+              <kbd class="search-kbd" aria-hidden="true">/</kbd>
+            </span>
+            <input type="color" id="picker" value="#3a5f8b" aria-label="Pick a colour to find the closest Wada colours" title="Find combinations by colour" />
+          </div>
         </div>
+        <section class="match" id="match" hidden aria-live="polite"></section>
         <p class="count" id="count"></p>
         <ul class="combo-list" id="combo-list"></ul>
+        <footer class="sidebar-footer">
+          <button type="button" class="link-button" id="shortcuts-open" aria-keyshortcuts="?">Keyboard shortcuts <kbd>?</kbd></button>
+        </footer>
       </aside>
 
       <main class="main">
@@ -37,20 +47,20 @@
             <label class="stepper">
               <span>Darker</span>
               <span class="stepper-box">
-                <button type="button" data-target="darker" data-delta="-1" aria-label="Fewer darker steps">−</button>
+                <button type="button" data-target="darker" data-delta="-1" aria-label="Fewer darker steps" title="Fewer darker steps (Shift+D)">−</button>
                 <input type="number" id="darker" min="0" max="10" value="2" inputmode="numeric" />
-                <button type="button" data-target="darker" data-delta="1" aria-label="More darker steps">+</button>
+                <button type="button" data-target="darker" data-delta="1" aria-label="More darker steps" title="More darker steps (D)">+</button>
               </span>
             </label>
             <label class="stepper">
               <span>Lighter</span>
               <span class="stepper-box">
-                <button type="button" data-target="lighter" data-delta="-1" aria-label="Fewer lighter steps">−</button>
+                <button type="button" data-target="lighter" data-delta="-1" aria-label="Fewer lighter steps" title="Fewer lighter steps (Shift+L)">−</button>
                 <input type="number" id="lighter" min="0" max="10" value="2" inputmode="numeric" />
-                <button type="button" data-target="lighter" data-delta="1" aria-label="More lighter steps">+</button>
+                <button type="button" data-target="lighter" data-delta="1" aria-label="More lighter steps" title="More lighter steps (L)">+</button>
               </span>
             </label>
-            <button type="button" class="primary" id="export">Export .gpl</button>
+            <button type="button" class="primary" id="export" title="Export .gpl (E)" aria-keyshortcuts="E">Export .gpl</button>
           </div>
         </header>
 
@@ -69,6 +79,27 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="shortcuts" id="shortcuts" aria-labelledby="shortcuts-title">
+      <header>
+        <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+        <button type="button" class="close" id="shortcuts-close" aria-label="Close">×</button>
+      </header>
+      <table>
+        <tbody>
+          <tr><td><kbd>↓</kbd> <kbd>J</kbd></td><td>Next combination</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>K</kbd></td><td>Previous combination</td></tr>
+          <tr><td><kbd>D</kbd></td><td>More darker steps</td></tr>
+          <tr><td><kbd>Shift</kbd> <kbd>D</kbd></td><td>Fewer darker steps</td></tr>
+          <tr><td><kbd>L</kbd></td><td>More lighter steps</td></tr>
+          <tr><td><kbd>Shift</kbd> <kbd>L</kbd></td><td>Fewer lighter steps</td></tr>
+          <tr><td><kbd>E</kbd></td><td>Export .gpl</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Search (name, number or #hex)</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Clear the search</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Show this list</td></tr>
+        </tbody>
+      </table>
+      <p>Next and previous follow the list as currently filtered.</p>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

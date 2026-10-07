@@ -1,6 +1,7 @@
 import './style.css';
 import { combinations, getCombination, relatedCombinations, type Combination } from './core/data';
 import { exporters } from './core/export';
+import { describeDistance, nearestColors, parseHexColor, type ColorMatch } from './core/nearest';
 import { buildPalette, comboTitle, paletteFileName } from './core/palette';
 import { MAX_STEPS, type Shade } from './core/shades';
 
@@ -10,6 +11,8 @@ interface State {
   darker: number;
   size: number;
   query: string;
+  /** In colour search, the dataset index of the one match the list is narrowed to. */
+  matchFocus: number | null;
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -18,6 +21,9 @@ const els = {
   list: $<HTMLUListElement>('combo-list'),
   count: $<HTMLParagraphElement>('count'),
   search: $<HTMLInputElement>('search'),
+  picker: $<HTMLInputElement>('picker'),
+  match: $<HTMLElement>('match'),
+  shortcuts: $<HTMLDialogElement>('shortcuts'),
   sizeFilter: $<HTMLDivElement>('size-filter'),
   title: $<HTMLHeadingElement>('combo-title'),
   colors: $<HTMLParagraphElement>('combo-colors'),
@@ -43,7 +49,9 @@ function readHash(): Partial<State> {
   return out;
 }
 
-const state: State = { comboId: 1, lighter: 2, darker: 2, size: 0, query: '', ...readHash() };
+const state: State = { comboId: 1, lighter: 2, darker: 2, size: 0, query: '', matchFocus: null, ...readHash() };
+
+const MATCH_LIMIT = 5;
 
 /** push adds a history entry, so Back returns to the previous combination. */
 function writeHash(push = false) {
@@ -108,14 +116,69 @@ function renderList() {
   els.list.append(frag);
 }
 
-function applyFilter() {
-  let visible = 0;
-  for (const combo of combinations) {
-    const show = matches(combo);
-    listItems.get(combo.id)!.hidden = !show;
-    if (show) visible++;
+function renderMatchPanel(hex: string | null, found: ColorMatch[]) {
+  els.match.hidden = !hex;
+  if (!hex) {
+    els.match.replaceChildren();
+    return;
   }
-  els.count.textContent = `${visible} of ${combinations.length} combinations`;
+  const head = document.createElement('p');
+  head.className = 'match-head';
+  const chip = document.createElement('span');
+  chip.className = 'match-target';
+  chip.style.background = hex;
+  head.append('Closest Wada colours to ', chip, ` ${hex}`);
+  const list = document.createElement('div');
+  list.className = 'match-list';
+  for (const { color, deltaE } of found) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'match-item';
+    btn.dataset.index = String(color.index);
+    btn.setAttribute('aria-pressed', String(state.matchFocus === color.index));
+    btn.title = state.matchFocus === color.index ? 'Show all matches again' : `Only combinations with ${color.name}`;
+    const sw = document.createElement('span');
+    sw.className = 'match-swatch';
+    sw.style.background = color.hex;
+    const name = document.createElement('span');
+    name.className = 'match-name';
+    name.textContent = color.name;
+    const meta = document.createElement('span');
+    meta.className = 'match-meta';
+    meta.textContent = `${color.hex} · ΔE ${deltaE.toFixed(1)} · ${describeDistance(deltaE)}`;
+    btn.append(sw, name, meta);
+    list.append(btn);
+  }
+  els.match.replaceChildren(head, list);
+}
+
+function applyFilter() {
+  const hex = parseHexColor(state.query);
+  const found = hex ? nearestColors(hex, MATCH_LIMIT) : [];
+  if (state.matchFocus !== null && !found.some((m) => m.color.index === state.matchFocus)) state.matchFocus = null;
+  renderMatchPanel(hex, found);
+
+  // Colour search: rank of each matched colour, nearest first.
+  const rank = new Map<number, number>();
+  found.forEach((m, i) => {
+    if (state.matchFocus === null || state.matchFocus === m.color.index) rank.set(m.color.index, i);
+  });
+  const comboRank = (combo: Combination) =>
+    Math.min(...combo.colors.map((c) => rank.get(c.index) ?? Infinity));
+
+  const shown: Combination[] = [];
+  for (const combo of combinations) {
+    const show = hex
+      ? (!state.size || combo.colors.length === state.size) && comboRank(combo) < Infinity
+      : matches(combo);
+    listItems.get(combo.id)!.hidden = !show;
+    if (show) shown.push(combo);
+  }
+  // Order by nearest matched colour in colour search, by number otherwise.
+  const ordered = hex ? [...shown].sort((a, b) => comboRank(a) - comboRank(b) || a.id - b.id) : combinations;
+  els.list.append(...ordered.map((c) => listItems.get(c.id)!));
+
+  els.count.textContent = `${shown.length} of ${combinations.length} combinations`;
   for (const btn of els.sizeFilter.querySelectorAll<HTMLButtonElement>('button')) {
     btn.setAttribute('aria-checked', String(Number(btn.dataset.size) === state.size));
   }
@@ -259,9 +322,29 @@ els.sizeFilter.addEventListener('click', (e) => {
   applyFilter();
 });
 
-els.search.addEventListener('input', () => {
-  state.query = els.search.value;
+function setQuery(query: string) {
+  state.query = query;
+  state.matchFocus = null;
+  const hex = parseHexColor(query);
+  if (hex) els.picker.value = hex;
   applyFilter();
+  els.list.scrollTop = 0;
+}
+
+els.search.addEventListener('input', () => setQuery(els.search.value));
+
+els.picker.addEventListener('input', () => {
+  els.search.value = els.picker.value;
+  setQuery(els.picker.value);
+});
+
+els.match.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.match-item');
+  if (!btn) return;
+  const index = Number(btn.dataset.index);
+  state.matchFocus = state.matchFocus === index ? null : index;
+  applyFilter();
+  els.list.scrollTop = 0;
 });
 
 document.querySelectorAll<HTMLButtonElement>('.stepper button').forEach((btn) => {
@@ -329,4 +412,81 @@ window.addEventListener('hashchange', () => {
   Object.assign(state, readHash());
   render();
   revealInList();
+});
+
+// Keyboard shortcuts. Listed in the #shortcuts dialog; keep both in sync.
+function visibleIds(): number[] {
+  return [...els.list.children]
+    .filter((li) => !(li as HTMLLIElement).hidden)
+    .map((li) => Number((li.firstElementChild as HTMLElement).dataset.id));
+}
+
+function step(delta: 1 | -1) {
+  const ids = visibleIds();
+  if (!ids.length) return;
+  const i = ids.indexOf(state.comboId);
+  // Outside the filtered list: start from its first (or last) entry.
+  const next = i === -1 ? ids[delta > 0 ? 0 : ids.length - 1] : ids[i + delta];
+  if (next === undefined) return;
+  goTo(next);
+  revealInList();
+}
+
+function openShortcuts() {
+  if (!els.shortcuts.open) els.shortcuts.showModal();
+}
+
+$<HTMLButtonElement>('shortcuts-open').addEventListener('click', openShortcuts);
+$<HTMLButtonElement>('shortcuts-close').addEventListener('click', () => els.shortcuts.close());
+els.shortcuts.addEventListener('click', (e) => {
+  if (e.target === els.shortcuts) els.shortcuts.close(); // click on the backdrop
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || els.shortcuts.open) return;
+  const target = e.target as HTMLElement;
+  if (e.key === 'Escape' && (target === els.search || state.query)) {
+    els.search.value = '';
+    setQuery('');
+    els.search.blur();
+    e.preventDefault();
+    return;
+  }
+  if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+  switch (e.key) {
+    case 'ArrowDown':
+    case 'j':
+      step(1);
+      break;
+    case 'ArrowUp':
+    case 'k':
+      step(-1);
+      break;
+    case 'd':
+      setSteps('darker', state.darker + 1);
+      break;
+    case 'D':
+      setSteps('darker', state.darker - 1);
+      break;
+    case 'l':
+      setSteps('lighter', state.lighter + 1);
+      break;
+    case 'L':
+      setSteps('lighter', state.lighter - 1);
+      break;
+    case 'e':
+      exportPalette();
+      break;
+    case '/':
+      els.search.focus();
+      els.search.select();
+      break;
+    case '?':
+      openShortcuts();
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
 });

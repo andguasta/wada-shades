@@ -19,6 +19,25 @@ npm run build      # build statica in dist/ (base relativa, pubblicabile ovunque
 5. **Export .gpl** scarica la palette della combinazione selezionata.
 6. Il selettore **S/M/L/XL** sopra la palette originale ne regola l'altezza; la scelta viene ricordata dal browser.
 
+### Ricerca per colore
+
+Inserendo un hex completo nella ricerca (`#3a5f8b`, `3a5f8b` o `#abc`), oppure scegliendolo con il selettore colore accanto,
+l'app mostra i 5 colori di Wada più vicini con la loro distanza percettiva (ΔE OK, cioè la distanza euclidea in OKLab ×100;
+circa 2 è la minima differenza percepibile) e ordina la lista per vicinanza.
+Un clic su uno dei colori trovati limita la lista alle combinazioni che lo contengono.
+
+### Scorciatoie da tastiera
+
+| Tasto | Azione |
+| --- | --- |
+| `↓` `J` / `↑` `K` | Combinazione successiva / precedente nella lista filtrata |
+| `D` / `Shift+D` | Un passo scuro in più / in meno |
+| `L` / `Shift+L` | Un passo chiaro in più / in meno |
+| `E` | Export .gpl |
+| `/` | Vai alla ricerca |
+| `Esc` | Azzera la ricerca |
+| `?` | Mostra le scorciatoie |
+
 Lo stato è nell'URL (`#c=42&d=2&l=2`), quindi una configurazione si può salvare o condividere.
 Il tasto Indietro del browser torna alla combinazione precedente.
 
@@ -88,6 +107,7 @@ Nome file: `sanzo-wada-042-d2-l2.gpl`.
 src/core/data.ts           dataset, correzioni dei nomi, 348 combinazioni e combinazioni correlate
 src/core/shades.ts         generazione delle tinte
 src/core/palette.ts        palette di una combinazione, titolo e nome file
+src/core/nearest.ts        ricerca dei colori più vicini (ΔE OK)
 src/core/export/           exporter intercambiabili (gpl; altri formati, es. lista hex, si aggiungono qui)
 src/main.ts, style.css     interfaccia
 tests/                     test Vitest del core
