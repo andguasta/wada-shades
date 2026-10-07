@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wada Shades</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='8' height='16' fill='%23e2b540'/%3E%3Crect x='8' width='8' height='16' fill='%234f4086'/%3E%3C/svg%3E" />
+    <meta name="description" content="Light and dark shades for Sanzo Wada's colour combinations, exported as GIMP palettes." />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <header class="brand">
+          <h1>Wada Shades</h1>
+          <p>348 combinations from Sanzo Wada's <em>A Dictionary of Colour Combinations</em></p>
+        </header>
+        <div class="filters">
+          <div class="segmented" role="radiogroup" aria-label="Colours per combination" id="size-filter">
+            <button type="button" role="radio" data-size="0" aria-checked="true">All</button>
+            <button type="button" role="radio" data-size="2" aria-checked="false">2</button>
+            <button type="button" role="radio" data-size="3" aria-checked="false">3</button>
+            <button type="button" role="radio" data-size="4" aria-checked="false">4</button>
+          </div>
+          <input type="search" id="search" placeholder="Search colour name or number" aria-label="Search combinations" />
+        </div>
+        <p class="count" id="count"></p>
+        <ul class="combo-list" id="combo-list"></ul>
+      </aside>
+
+      <main class="main">
+        <header class="toolbar">
+          <div class="title">
+            <h2 id="combo-title"></h2>
+            <p id="combo-colors"></p>
+          </div>
+          <div class="controls">
+            <label class="stepper">
+              <span>Darker</span>
+              <span class="stepper-box">
+                <button type="button" data-target="darker" data-delta="-1" aria-label="Fewer darker steps">−</button>
+                <input type="number" id="darker" min="0" max="10" value="2" inputmode="numeric" />
+                <button type="button" data-target="darker" data-delta="1" aria-label="More darker steps">+</button>
+              </span>
+            </label>
+            <label class="stepper">
+              <span>Lighter</span>
+              <span class="stepper-box">
+                <button type="button" data-target="lighter" data-delta="-1" aria-label="Fewer lighter steps">−</button>
+                <input type="number" id="lighter" min="0" max="10" value="2" inputmode="numeric" />
+                <button type="button" data-target="lighter" data-delta="1" aria-label="More lighter steps">+</button>
+              </span>
+            </label>
+            <button type="button" class="primary" id="export">Export .gpl</button>
+          </div>
+        </header>
+
+        <section class="original" aria-label="Original combination" id="original"></section>
+        <section class="preview" aria-label="Shade preview" id="preview"></section>
+        <p class="hint">Click a swatch to copy its hex. The outlined swatch is Wada's original colour, never altered.</p>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
