@@ -1,66 +1,72 @@
 # Wada Shades
 
-Web app statica per generare tinte più chiare e più scure a partire dalle 348 combinazioni di
-*A Dictionary of Colour Combinations* di Sanzo Wada, con anteprima ed export in formato GIMP Palette (`.gpl`).
+A static web app that generates lighter and darker shades for the 348 combinations in Sanzo Wada's
+*A Dictionary of Colour Combinations*, with a live preview and export to GIMP Palette (`.gpl`).
 
-## Uso
+## Getting started
+
+Requires Node.js 20 or later.
 
 ```sh
 npm install
-npm run dev        # sviluppo
-npm test           # test del core
-npm run build      # build statica in dist/ (base relativa, pubblicabile ovunque)
+npm run dev        # development server
+npm test           # core tests
+npm run build      # static build in dist/ (relative base, can be hosted anywhere)
+npm run preview    # serve the build locally
 ```
 
-1. Scegli una combinazione dalla lista (filtri per numero di colori, ricerca per nome, hex o numero).
-2. Imposta quanti passi **Darker** e **Lighter** generare (da 0 a 10 per lato).
-3. Controlla l'anteprima: il colore originale di Wada è evidenziato e non viene mai modificato. Un clic su una tinta ne copia l'hex.
-4. Sotto ogni colore ci sono le altre combinazioni che lo usano: un clic apre la combinazione mantenendo i passi impostati.
-5. **Export .gpl** scarica la palette della combinazione selezionata.
-6. Il selettore **S/M/L/XL** sopra la palette originale ne regola l'altezza; la scelta viene ricordata dal browser.
+## Usage
 
-### Ricerca per colore
+1. Pick a combination from the list (filter by number of colours, search by name, number or hex).
+2. Set how many **Darker** and **Lighter** steps to generate (0 to 10 on each side).
+3. Check the preview: Wada's original colour is outlined and never altered. Click a shade to copy its hex.
+4. Under each colour, the other combinations that use it are listed: click one to open it with the same step settings.
+5. **Export .gpl** downloads the palette of the selected combination.
+6. The **S/M/L/XL** control above the original palette sets its height; the browser remembers the choice.
 
-Inserendo un hex completo nella ricerca (`#3a5f8b`, `3a5f8b` o `#abc`), oppure scegliendolo con il selettore colore accanto,
-l'app mostra i 5 colori di Wada più vicini con la loro distanza percettiva (ΔE OK, cioè la distanza euclidea in OKLab ×100;
-circa 2 è la minima differenza percepibile) e ordina la lista per vicinanza.
-Un clic su uno dei colori trovati limita la lista alle combinazioni che lo contengono.
+The state lives in the URL (`#c=42&d=2&l=2`), so a configuration can be bookmarked or shared.
+The browser's Back button returns to the previous combination.
 
-### Simulazione del daltonismo
+### Search by colour
 
-Il selettore **Vision** (o il tasto `V`) mostra l'intera interfaccia come la vede chi ha protanopia (assenza dei coni del rosso)
-o deuteranopia (assenza dei coni del verde). Insieme alle forme lievi degli stessi tipi coprono quasi tutti i casi:
-circa l'8% degli uomini e lo 0,4% delle donne di origine europea. Si usano le matrici di Machado, Oliveira e Fernandes (2009)
-a severità massima, cioè il caso peggiore, applicate in RGB lineare (`src/core/vision.ts`).
-È solo una vista: hex mostrati, copie ed export restano i colori reali.
+Enter a full hex in the search box (`#3a5f8b`, `3a5f8b` or `#abc`), or choose one with the colour picker next to it.
+The app shows the 5 closest Wada colours with their perceptual distance (ΔE OK: Euclidean distance in OKLab ×100;
+about 2 is the smallest noticeable difference) and orders the list by closeness.
+Click one of the matches to show only the combinations that contain it.
 
-### Scorciatoie da tastiera
+### Colour blindness simulation
 
-| Tasto | Azione |
+The **Vision** control (or the `V` key) shows the whole interface as seen with protanopia (no red cones)
+or deuteranopia (no green cones). Together with their milder forms, these cover almost all cases of colour blindness:
+about 8% of men and 0.4% of women of European ancestry. The simulation uses the Machado, Oliveira and Fernandes (2009)
+matrices at full severity, the worst case, applied in linear RGB (`src/core/vision.ts`).
+It only changes the view: displayed hex values, copies and exports always keep the real colours.
+
+### Keyboard shortcuts
+
+| Key | Action |
 | --- | --- |
-| `↓` `J` / `↑` `K` | Combinazione successiva / precedente nella lista filtrata |
-| `D` / `Shift+D` | Un passo scuro in più / in meno |
-| `L` / `Shift+L` | Un passo chiaro in più / in meno |
-| `V` | Visione: normale, protan, deutan |
+| `↓` `J` / `↑` `K` | Next / previous combination in the filtered list |
+| `D` / `Shift+D` | One more / one fewer darker step |
+| `L` / `Shift+L` | One more / one fewer lighter step |
+| `V` | Cycle vision: normal, protan, deutan |
 | `E` | Export .gpl |
-| `/` | Vai alla ricerca |
-| `Esc` | Azzera la ricerca |
-| `?` | Mostra le scorciatoie |
+| `/` | Focus the search |
+| `Esc` | Clear the search |
+| `?` | Show the shortcuts |
 
-Lo stato è nell'URL (`#c=42&d=2&l=2`), quindi una configurazione si può salvare o condividere.
-Il tasto Indietro del browser torna alla combinazione precedente.
+## Data
 
-## Dati
+`src/data/colors.json` comes from [mattdesl/dictionary-of-colour-combinations](https://github.com/mattdesl/dictionary-of-colour-combinations)
+(MIT, licence in `src/data/`), the same dataset used by
+[bravokiloecho/color-combinations-sanzo-wada-public](https://github.com/bravokiloecho/color-combinations-sanzo-wada-public).
+Its 159 colours were converted from CMYK with ICC profiles (U.S. Web Coated SWOP v2 → sRGB) and are closer to the printed book
+than the original values in [dblodorn/sanzo-wada](https://github.com/dblodorn/sanzo-wada). The file is copied unchanged.
 
-`src/data/colors.json` proviene da [mattdesl/dictionary-of-colour-combinations](https://github.com/mattdesl/dictionary-of-colour-combinations)
-(MIT, licenza in `src/data/`). È lo stesso dataset usato da bravokiloecho/color-combinations-sanzo-wada-public:
-159 colori convertiti da CMYK con profili ICC (U.S. Web Coated SWOP v2 → sRGB), più fedeli alla stampa
-rispetto ai valori originali di dblodorn/sanzo-wada. Il file è copiato senza modifiche.
+Wada's colour names come from Robert Ridgway's *Color Standards and Color Nomenclature* (1912).
+Typos in the dataset are corrected in `NAME_FIXES` (`src/core/data.ts`) rather than in the JSON, so the source stays verifiable:
 
-I nomi di Wada derivano da *Color Standards and Color Nomenclature* di Robert Ridgway (1912).
-I refusi del dataset sono corretti in `NAME_FIXES` (`src/core/data.ts`), non nel JSON, quindi la fonte resta verificabile:
-
-| Dataset | Corretto |
+| Dataset | Corrected |
 | --- | --- |
 | Rosolanc Purple | Rosolane Purple |
 | Pomegranite Purple | Pomegranate Purple |
@@ -76,22 +82,22 @@ I refusi del dataset sono corretti in `NAME_FIXES` (`src/core/data.ts`), non nel
 | Eugenia Red \| A, Eugenia Red \| B | Eugenia Red A, Eugenia Red B |
 | Grayish Lavender - A, Grayish Lavender - B | Grayish Lavender A, Grayish Lavender B |
 
-La ricerca trova i colori sia con il nome corretto sia con quello originale.
+Search matches both the corrected and the original name.
 
-## Algoritmo delle tinte (`src/core/shades.ts`)
+## Shade algorithm (`src/core/shades.ts`)
 
-Calcolo in **OKLCH**, spazio percettivamente uniforme:
+Shades are computed in **OKLCH**, a perceptually uniform colour space:
 
-* **Colore base:** usa sempre i valori RGB originali del dataset, senza conversioni.
-* **Luminosità:** i passi chiari vanno dalla L del colore base verso 0.99, quelli scuri verso 0.10, a intervalli uguali
-  (`t = i / (n + 1)`), quindi nessun passo coincide con bianco o nero puro.
-* **Tono:** costante.
-* **Croma:** ridotta con `C = C0 · (1 − t²)`, perché bianco e nero non hanno croma; resta quasi piena vicino al colore base.
-* **Gamut:** ciò che esce da sRGB viene riportato dentro riducendo solo la croma, a L e H invariati
-  (`clampChroma` di culori), poi arrotondato a 8 bit.
-* **Caso limite:** un colore già oltre il limite (White, L = 1) non ha tinte più chiare: quei passi restano bianchi.
+* **Base colour:** always the dataset's original RGB values, never converted.
+* **Lightness:** lighter steps move from the base L towards 0.99 and darker steps towards 0.10, evenly spaced
+  (`t = i / (n + 1)`), so no step reaches pure white or black.
+* **Hue:** constant.
+* **Chroma:** reduced as `C = C0 · (1 − t²)`, since white and black have no chroma; it stays almost full near the base colour.
+* **Gamut:** colours outside sRGB are brought back by reducing chroma only, keeping L and H
+  (culori's `clampChroma`), then rounded to 8 bits.
+* **Edge case:** a colour already past the limit (White, L = 1) has nothing lighter, so those steps stay white.
 
-## Formato `.gpl`
+## `.gpl` format
 
 ```
 GIMP Palette
@@ -107,18 +113,18 @@ Columns: 5
 ...
 ```
 
-Una riga logica per ogni colore della combinazione, ordinata dalla più scura alla più chiara (`Columns` = passi totali).
-Nome file: `sanzo-wada-042-d2-l2.gpl`.
+One row per colour of the combination, ordered from darkest to lightest (`Columns` = total steps per row).
+File name: `sanzo-wada-042-d2-l2.gpl`.
 
-## Struttura
+## Project structure
 
 ```
-src/core/data.ts           dataset, correzioni dei nomi, 348 combinazioni e combinazioni correlate
-src/core/shades.ts         generazione delle tinte
-src/core/palette.ts        palette di una combinazione, titolo e nome file
-src/core/nearest.ts        ricerca dei colori più vicini (ΔE OK)
-src/core/vision.ts         simulazione di protanopia e deuteranopia
-src/core/export/           exporter intercambiabili (gpl; altri formati, es. lista hex, si aggiungono qui)
-src/main.ts, style.css     interfaccia
-tests/                     test Vitest del core
+src/core/data.ts           dataset, name fixes, the 348 combinations and related combinations
+src/core/shades.ts         shade generation
+src/core/palette.ts        palette of a combination, title and file name
+src/core/nearest.ts        closest-colour search (ΔE OK)
+src/core/vision.ts         protanopia and deuteranopia simulation
+src/core/export/           pluggable exporters (gpl; other formats such as a hex list go here)
+src/main.ts, style.css     user interface
+tests/                     Vitest tests for the core
 ```
