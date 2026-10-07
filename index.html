@@ -61,6 +61,20 @@
               </span>
             </label>
             <div class="control">
+              <span class="control-label">Spacing</span>
+              <span class="spacing-row">
+                <span class="segmented spacing" role="radiogroup" aria-label="Step spacing" id="spacing" title="Spread: steps fill the colour's whole range. Fixed: every step changes lightness by the same amount. (S)" aria-keyshortcuts="S">
+                  <button type="button" role="radio" data-spacing="spread" aria-checked="true">Spread</button>
+                  <button type="button" role="radio" data-spacing="fixed" aria-checked="false">Fixed</button>
+                </span>
+                <span class="stepper-box" title="Lightness change per step, in OKLCH lightness × 100 (decrease [ , increase ])">
+                  <button type="button" data-target="step" data-delta="-1" aria-label="Smaller step">−</button>
+                  <input type="number" id="step-size" min="2" max="20" value="8" inputmode="numeric" aria-label="Lightness change per step" />
+                  <button type="button" data-target="step" data-delta="1" aria-label="Larger step">+</button>
+                </span>
+              </span>
+            </div>
+            <div class="control">
               <span class="control-label">Vision</span>
               <div class="segmented vision" role="radiogroup" aria-label="Colour vision simulation" id="vision" title="Simulate colour blindness (V)" aria-keyshortcuts="V">
                 <button type="button" role="radio" data-vision="normal" aria-checked="true">Normal</button>
@@ -101,6 +115,8 @@
           <tr><td><kbd>Shift</kbd> <kbd>D</kbd></td><td>Fewer darker steps</td></tr>
           <tr><td><kbd>L</kbd></td><td>More lighter steps</td></tr>
           <tr><td><kbd>Shift</kbd> <kbd>L</kbd></td><td>Fewer lighter steps</td></tr>
+          <tr><td><kbd>S</kbd></td><td>Toggle spacing: spread, fixed</td></tr>
+          <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Smaller / larger fixed step</td></tr>
           <tr><td><kbd>V</kbd></td><td>Cycle vision: normal, protan, deutan</td></tr>
           <tr><td><kbd>E</kbd></td><td>Export .gpl</td></tr>
           <tr><td><kbd>/</kbd></td><td>Search (name, number or #hex)</td></tr>

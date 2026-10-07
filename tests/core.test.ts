@@ -4,7 +4,7 @@ import { colors, combinations, getCombination, NAME_FIXES, relatedCombinations }
 import { toGpl } from '../src/core/export/gpl';
 import { buildPalette, paletteFileName } from '../src/core/palette';
 import { nearestColors, parseHexColor } from '../src/core/nearest';
-import { buildScale, MAX_STEPS } from '../src/core/shades';
+import { buildScale, MAX_STEPS, MAX_STEP_SIZE, MIN_STEP_SIZE } from '../src/core/shades';
 import { feColorMatrixValues, simulate } from '../src/core/vision';
 
 const toOklch = converter('oklch');
@@ -97,6 +97,42 @@ describe('buildScale', () => {
   });
 });
 
+describe('fixed spacing', () => {
+  const fixed = (size: number) => ({ mode: 'fixed', size }) as const;
+
+  it('moves lightness by the fixed amount when the colour has room', () => {
+    const violet = colors.find((c) => c.name === 'Violet')!;
+    const { shades } = buildScale(violet, 2, 2, fixed(0.08));
+    const ls = shades.map((s) => lightness(s.hex));
+    // Rounding to 8-bit RGB moves lightness by a few thousandths at most.
+    for (const [i, delta] of [[0, -0.16], [1, -0.08], [3, 0.08], [4, 0.16]] as const) {
+      expect(ls[i] - ls[2]).toBeCloseTo(delta, 2);
+    }
+  });
+
+  it('keeps steps closer to the base than spread spacing', () => {
+    const violet = colors.find((c) => c.name === 'Violet')!;
+    const spread = buildScale(violet, 2, 2).shades.map((s) => lightness(s.hex));
+    const close = buildScale(violet, 2, 2, fixed(0.06)).shades.map((s) => lightness(s.hex));
+    expect(close[4] - close[2]).toBeLessThan(spread[4] - spread[2]);
+    expect(close[2] - close[0]).toBeLessThan(spread[2] - spread[0]);
+  });
+
+  it('shrinks steps instead of piling them up when the colour lacks room', () => {
+    for (const color of colors) {
+      for (const size of [MIN_STEP_SIZE, 0.08, MAX_STEP_SIZE]) {
+        const { shades } = buildScale(color, 4, 4, fixed(size));
+        expect(shades[4].hex).toBe(color.hex);
+        const ls = shades.map((s) => lightness(s.hex));
+        for (let i = 1; i < ls.length; i++) {
+          if (color.hex === '#ffffff' && i > 4) expect(shades[i].hex).toBe('#ffffff');
+          else expect(ls[i]).toBeGreaterThan(ls[i - 1]);
+        }
+      }
+    }
+  });
+});
+
 describe('gpl export', () => {
   it('serializes a combination as a GIMP palette', () => {
     const combo = getCombination(1)!;
@@ -114,6 +150,9 @@ describe('gpl export', () => {
 
   it('builds a descriptive file name', () => {
     expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl')).toBe('sanzo-wada-042-d3-l2.gpl');
+    expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl', { mode: 'fixed', size: 0.08 })).toBe(
+      'sanzo-wada-042-d3-l2-step8.gpl',
+    );
   });
 });
 

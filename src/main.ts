@@ -3,13 +3,23 @@ import { combinations, getCombination, relatedCombinations, type Combination } f
 import { exporters } from './core/export';
 import { describeDistance, nearestColors, parseHexColor, type ColorMatch } from './core/nearest';
 import { buildPalette, comboTitle, paletteFileName } from './core/palette';
-import { MAX_STEPS, type Shade } from './core/shades';
+import {
+  DEFAULT_STEP_SIZE,
+  MAX_STEP_SIZE,
+  MAX_STEPS,
+  MIN_STEP_SIZE,
+  type Shade,
+  type Spacing,
+} from './core/shades';
 import { feColorMatrixValues, VISION_LABELS, VISION_MODES, type VisionMode } from './core/vision';
 
 interface State {
   comboId: number;
   lighter: number;
   darker: number;
+  spacingMode: Spacing['mode'];
+  /** Fixed step size as OKLCH lightness × 100, kept while spread is active. */
+  stepSize: number;
   size: number;
   query: string;
   /** In colour search, the dataset index of the one match the list is narrowed to. */
@@ -33,6 +43,8 @@ const els = {
   colors: $<HTMLParagraphElement>('combo-colors'),
   lighter: $<HTMLInputElement>('lighter'),
   darker: $<HTMLInputElement>('darker'),
+  spacing: $<HTMLSpanElement>('spacing'),
+  stepSize: $<HTMLInputElement>('step-size'),
   exportBtn: $<HTMLButtonElement>('export'),
   original: $<HTMLElement>('original'),
   originalSize: $<HTMLDivElement>('original-size'),
@@ -42,6 +54,10 @@ const els = {
 };
 
 const clampSteps = (n: number) => (Number.isFinite(n) ? Math.min(MAX_STEPS, Math.max(0, Math.round(n))) : 0);
+const MIN_STEP = Math.round(MIN_STEP_SIZE * 100);
+const MAX_STEP = Math.round(MAX_STEP_SIZE * 100);
+const clampStep = (n: number) =>
+  Number.isFinite(n) ? Math.min(MAX_STEP, Math.max(MIN_STEP, Math.round(n))) : Math.round(DEFAULT_STEP_SIZE * 100);
 
 function readHash(): Partial<State> {
   const params = new URLSearchParams(location.hash.slice(1));
@@ -50,16 +66,34 @@ function readHash(): Partial<State> {
   if (getCombination(c)) out.comboId = c;
   if (params.has('l')) out.lighter = clampSteps(Number(params.get('l')));
   if (params.has('d')) out.darker = clampSteps(Number(params.get('d')));
+  // s=<size> means fixed spacing; no s means spread.
+  out.spacingMode = params.has('s') ? 'fixed' : 'spread';
+  if (params.has('s')) out.stepSize = clampStep(Number(params.get('s')));
   return out;
 }
 
-const state: State = { comboId: 1, lighter: 2, darker: 2, size: 0, query: '', matchFocus: null, ...readHash() };
+const state: State = {
+  comboId: 1,
+  lighter: 2,
+  darker: 2,
+  spacingMode: 'spread',
+  stepSize: Math.round(DEFAULT_STEP_SIZE * 100),
+  size: 0,
+  query: '',
+  matchFocus: null,
+  ...readHash(),
+};
+
+function spacing(): Spacing {
+  return state.spacingMode === 'fixed' ? { mode: 'fixed', size: state.stepSize / 100 } : { mode: 'spread' };
+}
 
 const MATCH_LIMIT = 5;
 
 /** push adds a history entry, so Back returns to the previous combination. */
 function writeHash(push = false) {
-  const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}`;
+  const fixed = state.spacingMode === 'fixed' ? `&s=${state.stepSize}` : '';
+  const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}${fixed}`;
   if (location.hash === hash) return;
   if (push) history.pushState(null, '', hash);
   else history.replaceState(null, '', hash);
@@ -246,7 +280,12 @@ function render(push = false) {
     }),
   );
 
-  const palette = buildPalette(combo, state.lighter, state.darker);
+  els.stepSize.value = String(state.stepSize);
+  els.stepSize.closest('.stepper-box')!.classList.toggle('inactive', state.spacingMode !== 'fixed');
+  for (const btn of els.spacing.querySelectorAll<HTMLButtonElement>('button')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.spacing === state.spacingMode));
+  }
+  const palette = buildPalette(combo, state.lighter, state.darker, spacing());
   els.preview.style.setProperty('--cols', String(state.darker + state.lighter + 1));
   els.preview.replaceChildren(
     ...palette.scales.map((scale) => {
@@ -276,17 +315,29 @@ function toast(message: string) {
 function exportPalette() {
   const combo = getCombination(state.comboId)!;
   const exporter = exporters[0];
-  const text = exporter.serialize(buildPalette(combo, state.lighter, state.darker));
+  const text = exporter.serialize(buildPalette(combo, state.lighter, state.darker, spacing()));
   const url = URL.createObjectURL(new Blob([text], { type: exporter.mimeType }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = paletteFileName(combo, state.lighter, state.darker, exporter.extension);
+  a.download = paletteFileName(combo, state.lighter, state.darker, exporter.extension, spacing());
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function setSteps(key: 'lighter' | 'darker', value: number) {
   state[key] = clampSteps(value);
+  render();
+}
+
+function setSpacing(mode: Spacing['mode']) {
+  state.spacingMode = mode;
+  render();
+}
+
+/** Changing the step size implies fixed spacing. */
+function setStepSize(value: number) {
+  state.stepSize = clampStep(value);
+  state.spacingMode = 'fixed';
   render();
 }
 
@@ -351,11 +402,23 @@ els.match.addEventListener('click', (e) => {
   els.list.scrollTop = 0;
 });
 
-document.querySelectorAll<HTMLButtonElement>('.stepper button').forEach((btn) => {
+document.querySelectorAll<HTMLButtonElement>('.stepper-box button').forEach((btn) => {
   btn.addEventListener('click', () => {
+    const delta = Number(btn.dataset.delta);
+    if (btn.dataset.target === 'step') {
+      setStepSize(state.stepSize + delta);
+      return;
+    }
     const key = btn.dataset.target as 'lighter' | 'darker';
-    setSteps(key, state[key] + Number(btn.dataset.delta));
+    setSteps(key, state[key] + delta);
   });
+});
+
+els.stepSize.addEventListener('change', () => setStepSize(Number(els.stepSize.value)));
+
+els.spacing.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+  if (btn?.dataset.spacing) setSpacing(btn.dataset.spacing as Spacing['mode']);
 });
 
 for (const key of ['lighter', 'darker'] as const) {
@@ -520,6 +583,15 @@ document.addEventListener('keydown', (e) => {
       break;
     case 'e':
       exportPalette();
+      break;
+    case 's':
+      setSpacing(state.spacingMode === 'fixed' ? 'spread' : 'fixed');
+      break;
+    case '[':
+      setStepSize(state.stepSize - 1);
+      break;
+    case ']':
+      setStepSize(state.stepSize + 1);
       break;
     case 'v':
       setVision(VISION_MODES[(VISION_MODES.indexOf(vision) + 1) % VISION_MODES.length]);

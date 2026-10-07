@@ -18,13 +18,14 @@ npm run preview    # serve the build locally
 ## Usage
 
 1. Pick a combination from the list (filter by number of colours, search by name, number or hex).
-2. Set how many **Darker** and **Lighter** steps to generate (0 to 10 on each side).
+2. Set how many **Darker** and **Lighter** steps to generate (0 to 10 on each side), and how far apart they are
+   with **Spacing** (see below).
 3. Check the preview: Wada's original colour is outlined and never altered. Click a shade to copy its hex.
 4. Under each colour, the other combinations that use it are listed: click one to open it with the same step settings.
 5. **Export .gpl** downloads the palette of the selected combination.
 6. The **S/M/L/XL** control above the original palette sets its height; the browser remembers the choice.
 
-The state lives in the URL (`#c=42&d=2&l=2`), so a configuration can be bookmarked or shared.
+The state lives in the URL (`#c=42&d=2&l=2`, plus `&s=8` for fixed spacing), so a configuration can be bookmarked or shared.
 The browser's Back button returns to the previous combination.
 
 ### Search by colour
@@ -49,6 +50,8 @@ It only changes the view: displayed hex values, copies and exports always keep t
 | `↓` `J` / `↑` `K` | Next / previous combination in the filtered list |
 | `D` / `Shift+D` | One more / one fewer darker step |
 | `L` / `Shift+L` | One more / one fewer lighter step |
+| `S` | Toggle spacing: spread, fixed |
+| `[` / `]` | Smaller / larger fixed step |
 | `V` | Cycle vision: normal, protan, deutan |
 | `E` | Export .gpl |
 | `/` | Focus the search |
@@ -89,10 +92,19 @@ Search matches both the corrected and the original name.
 Shades are computed in **OKLCH**, a perceptually uniform colour space:
 
 * **Base colour:** always the dataset's original RGB values, never converted.
-* **Lightness:** lighter steps move from the base L towards 0.99 and darker steps towards 0.10, evenly spaced
-  (`t = i / (n + 1)`), so no step reaches pure white or black.
+* **Lightness:** lighter steps move from the base L towards 0.99 and darker steps towards 0.10.
+  How far apart they are depends on the **Spacing** option:
+  * **Spread** (default): the room between the base and the limit is split into n + 1 equal parts
+    (`L = L_base + (limit − L_base) · i / (n + 1)`). The steps always use the colour's whole range, so few steps are far apart,
+    and a colour close to a limit gets small steps on that side.
+  * **Fixed**: every step changes lightness by the same amount on every colour, set from 2 to 20 (OKLCH lightness × 100,
+    default 8). Good for close, even ramps such as pixel art shading. When a colour has no room for that amount,
+    its steps shrink to the spread spacing, so they never pile up at the limit.
+
+  Either way no step reaches pure white or black.
 * **Hue:** constant.
-* **Chroma:** reduced as `C = C0 · (1 − t²)`, since white and black have no chroma; it stays almost full near the base colour.
+* **Chroma:** reduced as `C = C0 · (1 − t²)`, where `t` is how far the step is towards the limit (0 at the base, 1 at the limit),
+  since white and black have no chroma; it stays almost full near the base colour.
 * **Gamut:** colours outside sRGB are brought back by reducing chroma only, keeping L and H
   (culori's `clampChroma`), then rounded to 8 bits.
 * **Edge case:** a colour already past the limit (White, L = 1) has nothing lighter, so those steps stay white.
@@ -114,7 +126,7 @@ Columns: 5
 ```
 
 One row per colour of the combination, ordered from darkest to lightest (`Columns` = total steps per row).
-File name: `sanzo-wada-042-d2-l2.gpl`.
+File name: `sanzo-wada-042-d2-l2.gpl`, or `sanzo-wada-042-d2-l2-step8.gpl` with fixed spacing.
 
 ## Project structure
 

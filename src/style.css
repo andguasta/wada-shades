@@ -232,6 +232,10 @@ kbd {
 .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 
 .control { display: grid; gap: 4px; }
+.spacing-row { display: inline-flex; gap: 6px; }
+.segmented.spacing { grid-template-columns: repeat(2, auto); background: var(--surface); }
+.segmented.spacing button { padding: 6px 10px; }
+.stepper-box.inactive input { color: var(--muted); }
 .control-label { font-size: 12px; color: var(--muted); }
 .segmented.vision { grid-template-columns: repeat(3, auto); background: var(--surface); }
 .segmented.vision button { padding: 6px 10px; }
@@ -384,3 +388,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
   .swatch { min-height: 64px; padding: 6px; font-size: 10px; }
   .swatch-hex { writing-mode: vertical-rl; transform: rotate(180deg); align-self: flex-start; }
 }
+
+/* Same height for every toolbar control so their labels line up. */
+.controls .stepper-box,
+.controls .segmented { height: 34px; }
+.controls .segmented button { padding-block: 0; }
+.controls .stepper-box { font-size: 14px; color: var(--text); }
