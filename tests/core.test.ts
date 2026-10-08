@@ -2,9 +2,17 @@ import { converter } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { colors, combinations, getCombination, NAME_FIXES, relatedCombinations } from '../src/core/data';
 import { toGpl } from '../src/core/export/gpl';
-import { buildPalette, paletteFileName } from '../src/core/palette';
+import { alignRows, buildPalette, paletteFileName } from '../src/core/palette';
 import { nearestColors, parseHexColor } from '../src/core/nearest';
 import { buildScale, MAX_STEPS, MAX_STEP_SIZE, MIN_STEP_SIZE, rotateHueTowards } from '../src/core/shades';
+import {
+  formatStepParams,
+  isMixed,
+  parseStepParams,
+  sameCounts,
+  uniformCounts,
+  type StepCounts,
+} from '../src/core/steps';
 import { feColorMatrixValues, simulate } from '../src/core/vision';
 
 const toOklch = converter('oklch');
@@ -187,7 +195,7 @@ describe('hue shift', () => {
 describe('gpl export', () => {
   it('serializes a combination as a GIMP palette', () => {
     const combo = getCombination(1)!;
-    const text = toGpl(buildPalette(combo, 2, 2));
+    const text = toGpl(buildPalette(combo, uniformCounts(combo.colors.length, 2)));
     const lines = text.trimEnd().split('\n');
     expect(lines.slice(0, 4)).toEqual(['GIMP Palette', 'Name: Sanzo Wada 001', 'Columns: 5', '#']);
     const rows = lines.slice(4);
@@ -200,13 +208,100 @@ describe('gpl export', () => {
   });
 
   it('builds a descriptive file name', () => {
-    expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl')).toBe('sanzo-wada-042-d3-l2.gpl');
-    expect(
-      paletteFileName(getCombination(42)!, 2, 3, 'gpl', { spacing: { mode: 'fixed', size: 0.08 }, hueShift: 0 }),
-    ).toBe('sanzo-wada-042-d3-l2-step8.gpl');
-    expect(paletteFileName(getCombination(42)!, 2, 3, 'gpl', { spacing: { mode: 'spread' }, hueShift: 10 })).toBe(
+    const combo = getCombination(42)!;
+    const d3l2 = [{ darker: 3, lighter: 2 }, { darker: 3, lighter: 2 }];
+    expect(paletteFileName(combo, d3l2, 'gpl')).toBe('sanzo-wada-042-d3-l2.gpl');
+    expect(paletteFileName(combo, d3l2, 'gpl', { spacing: { mode: 'fixed', size: 0.08 }, hueShift: 0 })).toBe(
+      'sanzo-wada-042-d3-l2-step8.gpl',
+    );
+    expect(paletteFileName(combo, d3l2, 'gpl', { spacing: { mode: 'spread' }, hueShift: 10 })).toBe(
       'sanzo-wada-042-d3-l2-hue10.gpl',
     );
+  });
+
+  it('names per-colour counts, and the filler only when it pads something', () => {
+    const combo = getCombination(42)!;
+    const uneven = [{ darker: 4, lighter: 1 }, { darker: 2, lighter: 3 }];
+    expect(paletteFileName(combo, uneven, 'gpl')).toBe('sanzo-wada-042-d4.2-l1.3.gpl');
+    expect(paletteFileName(combo, uneven, 'gpl', undefined, true)).toBe('sanzo-wada-042-d4.2-l1.3-fill.gpl');
+    expect(paletteFileName(combo, uniformCounts(2, 2), 'gpl', undefined, true)).toBe('sanzo-wada-042-d2-l2.gpl');
+  });
+});
+
+describe('per-colour step counts', () => {
+  const combo = getCombination(200)!; // three colours
+  const uneven: StepCounts[] = [
+    { darker: 4, lighter: 2 },
+    { darker: 2, lighter: 1 },
+    { darker: 1, lighter: 3 },
+  ];
+
+  it('builds each colour with its own counts', () => {
+    const palette = buildPalette(combo, uneven);
+    expect(palette.scales.map((s) => s.shades.length)).toEqual([7, 4, 5]);
+    expect(palette.scales[2].shades[0].name).toBe(`${combo.colors[2].name} dark 1`);
+  });
+
+  it('aligns rows on the base colour', () => {
+    const { darker, lighter, rows } = alignRows(buildPalette(combo, uneven).scales);
+    expect([darker, lighter]).toEqual([4, 3]);
+    for (const row of rows) {
+      expect(row).toHaveLength(8);
+      expect(row[4]?.kind).toBe('base');
+    }
+    expect(rows[1].map((s) => s?.kind ?? null)).toEqual([null, null, 'dark', 'dark', 'base', 'light', null, null]);
+  });
+
+  it('writes uneven rows back to back without a filler', () => {
+    const lines = toGpl(buildPalette(combo, uneven)).trimEnd().split('\n');
+    expect(lines[2]).toBe('Columns: 7');
+    expect(lines.slice(4)).toHaveLength(7 + 4 + 5);
+    expect(lines.some((l) => l.endsWith('Filler'))).toBe(false);
+  });
+
+  it('pads uneven rows with the filler colour', () => {
+    const lines = toGpl({ ...buildPalette(combo, uneven), filler: [0, 0, 0] }).trimEnd().split('\n');
+    expect(lines[2]).toBe('Columns: 8');
+    const rows = lines.slice(4);
+    expect(rows).toHaveLength(3 * 8);
+    expect(rows.filter((l) => l === '  0   0   0\tFiller')).toHaveLength(24 - (7 + 4 + 5));
+    // The base colours sit in the same column of every row.
+    for (let i = 0; i < 3; i++) expect(rows[i * 8 + 4]).toMatch(new RegExp(`\t${combo.colors[i].name}$`));
+  });
+
+  it('adds no filler when all colours have the same counts', () => {
+    const plain = toGpl(buildPalette(combo, uniformCounts(3, 2)));
+    expect(toGpl({ ...buildPalette(combo, uniformCounts(3, 2)), filler: [0, 0, 0] })).toBe(plain);
+  });
+
+  it('tells mixed counts from uniform ones', () => {
+    expect(isMixed(uniformCounts(3, 2), 2)).toBe(false);
+    expect(isMixed(uniformCounts(3, 2), 3)).toBe(true);
+    expect(isMixed(uneven, 2)).toBe(true);
+    expect(sameCounts(uniformCounts(3, 2))).toBe(true);
+    expect(sameCounts(uneven)).toBe(false);
+  });
+
+  it('round-trips through the URL hash parameters', () => {
+    const read = (text: string) => {
+      const p = new URLSearchParams(text);
+      return parseStepParams({ n: p.get('n'), d: p.get('d'), l: p.get('l') }, 3);
+    };
+    expect(formatStepParams(2, uniformCounts(3, 2))).toBe('d=2&l=2');
+    expect(formatStepParams(2, uneven)).toBe('n=2&d=4,2,1&l=2,1,3');
+    expect(read(formatStepParams(2, uneven))).toEqual({ shades: 2, counts: uneven });
+    expect(read('d=2&l=2')).toEqual({ shades: 2, counts: uniformCounts(3, 2) });
+  });
+
+  it('reads older and malformed links', () => {
+    const read = (n: string | null, d: string | null, l: string | null) => parseStepParams({ n, d, l }, 3);
+    // Older links had one darker and one lighter count for all colours.
+    expect(read(null, '2', '3')).toEqual({ shades: 2, counts: Array(3).fill({ darker: 2, lighter: 3 }) });
+    // Counts above the maximum are clamped.
+    expect(read(null, '10', '10').shades).toBe(MAX_STEPS);
+    // A list of the wrong length falls back to the global value.
+    expect(read('3', '1,2', null)).toEqual({ shades: 3, counts: uniformCounts(3, 3) });
+    expect(read(null, null, null)).toEqual({ shades: 2, counts: uniformCounts(3, 2) });
   });
 });
 

@@ -2,8 +2,9 @@ import './style.css';
 import { combinations, getCombination, relatedCombinations, type Combination } from './core/data';
 import { exporters } from './core/export';
 import { describeDistance, nearestColors, parseHexColor, type ColorMatch } from './core/nearest';
-import { buildPalette, comboTitle, paletteFileName } from './core/palette';
+import { alignRows, buildPalette, comboTitle, paletteFileName } from './core/palette';
 import {
+  clampSteps,
   DEFAULT_STEP_SIZE,
   MAX_STEP_SIZE,
   MAX_STEPS,
@@ -13,12 +14,24 @@ import {
   type Shade,
   type Spacing,
 } from './core/shades';
+import {
+  DEFAULT_SHADES,
+  formatStepParams,
+  isMixed,
+  parseStepParams,
+  uniformCounts,
+  type StepCounts,
+} from './core/steps';
 import { feColorMatrixValues, VISION_LABELS, VISION_MODES, type VisionMode } from './core/vision';
 
 interface State {
   comboId: number;
-  lighter: number;
-  darker: number;
+  /** Global number of darker and lighter shades; new combinations start with it on every colour. */
+  shades: number;
+  /** Darker and lighter shades of each colour of the current combination, in order. */
+  counts: StepCounts[];
+  /** Filler colour (hex without #) padding uneven rows of the export, or null when off. */
+  filler: string | null;
   spacingMode: Spacing['mode'];
   /** Fixed step size as OKLCH lightness × 100, kept while spread is active. */
   stepSize: number;
@@ -45,33 +58,49 @@ const els = {
   sizeFilter: $<HTMLDivElement>('size-filter'),
   title: $<HTMLHeadingElement>('combo-title'),
   colors: $<HTMLParagraphElement>('combo-colors'),
-  lighter: $<HTMLInputElement>('lighter'),
-  darker: $<HTMLInputElement>('darker'),
+  shades: $<HTMLInputElement>('shades'),
+  mixedTag: $<HTMLSpanElement>('mixed-tag'),
+  confirm: $<HTMLDivElement>('confirm'),
+  confirmText: $<HTMLParagraphElement>('confirm-text'),
+  confirmOk: $<HTMLButtonElement>('confirm-ok'),
+  confirmCancel: $<HTMLButtonElement>('confirm-cancel'),
+  filler: $<HTMLInputElement>('filler'),
+  fillerColor: $<HTMLInputElement>('filler-color'),
   spacing: $<HTMLSpanElement>('spacing'),
   stepSize: $<HTMLInputElement>('step-size'),
   hueShift: $<HTMLInputElement>('hue-shift'),
   exportBtn: $<HTMLButtonElement>('export'),
-  original: $<HTMLElement>('original'),
   originalSize: $<HTMLDivElement>('original-size'),
   preview: $<HTMLElement>('preview'),
+  grid: $<HTMLDivElement>('shades-grid'),
+  related: $<HTMLDivElement>('related'),
   toast: $<HTMLDivElement>('toast'),
   main: document.querySelector('.main') as HTMLElement,
 };
 
-const clampSteps = (n: number) => (Number.isFinite(n) ? Math.min(MAX_STEPS, Math.max(0, Math.round(n))) : 0);
 const MIN_STEP = Math.round(MIN_STEP_SIZE * 100);
 const MAX_STEP = Math.round(MAX_STEP_SIZE * 100);
 const clampHue = (n: number) => (Number.isFinite(n) ? Math.min(MAX_HUE_SHIFT, Math.max(0, Math.round(n))) : 0);
 const clampStep = (n: number) =>
   Number.isFinite(n) ? Math.min(MAX_STEP, Math.max(MIN_STEP, Math.round(n))) : Math.round(DEFAULT_STEP_SIZE * 100);
 
-function readHash(): Partial<State> {
+const DEFAULT_FILLER = '000000';
+const parseFiller = (text: string | null) => (text && /^[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : null);
+
+/** fallbackId: the combination to use when the hash names none. */
+function readHash(fallbackId: number): Partial<State> {
   const params = new URLSearchParams(location.hash.slice(1));
   const out: Partial<State> = {};
   const c = Number(params.get('c'));
-  if (getCombination(c)) out.comboId = c;
-  if (params.has('l')) out.lighter = clampSteps(Number(params.get('l')));
-  if (params.has('d')) out.darker = clampSteps(Number(params.get('d')));
+  out.comboId = getCombination(c) ? c : fallbackId;
+  const steps = parseStepParams(
+    { n: params.get('n'), d: params.get('d'), l: params.get('l') },
+    getCombination(out.comboId)!.colors.length,
+  );
+  out.shades = steps.shades;
+  out.counts = steps.counts;
+  // f=<hex> pads uneven export rows with that colour; no f means no filler.
+  out.filler = parseFiller(params.get('f'));
   // s=<size> means fixed spacing; no s means spread.
   out.spacingMode = params.has('s') ? 'fixed' : 'spread';
   if (params.has('s')) out.stepSize = clampStep(Number(params.get('s')));
@@ -81,15 +110,16 @@ function readHash(): Partial<State> {
 
 const state: State = {
   comboId: 1,
-  lighter: 2,
-  darker: 2,
+  shades: DEFAULT_SHADES,
+  counts: uniformCounts(getCombination(1)!.colors.length, DEFAULT_SHADES),
+  filler: null,
   spacingMode: 'spread',
   stepSize: Math.round(DEFAULT_STEP_SIZE * 100),
   hueShift: 0,
   size: 0,
   query: '',
   matchFocus: null,
-  ...readHash(),
+  ...readHash(1),
 };
 
 function scaleOptions(): ScaleOptions {
@@ -104,7 +134,8 @@ const MATCH_LIMIT = 5;
 function writeHash(push = false) {
   const fixed = state.spacingMode === 'fixed' ? `&s=${state.stepSize}` : '';
   const hue = state.hueShift > 0 ? `&h=${state.hueShift}` : '';
-  const hash = `#c=${state.comboId}&d=${state.darker}&l=${state.lighter}${fixed}${hue}`;
+  const filler = state.filler ? `&f=${state.filler}` : '';
+  const hash = `#c=${state.comboId}&${formatStepParams(state.shades, state.counts)}${fixed}${hue}${filler}`;
   if (location.hash === hash) return;
   if (push) history.pushState(null, '', hash);
   else history.replaceState(null, '', hash);
@@ -268,8 +299,8 @@ function relatedFor(color: Combination['colors'][number], comboId: number): HTML
   const label = document.createElement('span');
   label.className = 'related-label';
   label.textContent = related.length
-    ? `Also in ${related.length} ${related.length === 1 ? 'combination' : 'combinations'}`
-    : 'Only in this combination';
+    ? `${color.name}: also in ${related.length} ${related.length === 1 ? 'combination' : 'combinations'}`
+    : `${color.name}: only in this combination`;
   wrap.append(label);
   if (related.length) {
     const list = document.createElement('div');
@@ -280,10 +311,117 @@ function relatedFor(color: Combination['colors'][number], comboId: number): HTML
   return wrap;
 }
 
+/** Small stepper for one side of one colour; data-col and data-side drive the handlers. */
+function colStepper(i: number, side: keyof StepCounts, colorName: string): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = `col-stepper ${side}`;
+  const box = document.createElement('span');
+  box.className = 'stepper-box sm';
+  const button = (delta: number, text: string, label: string) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = text;
+    btn.dataset.col = String(i);
+    btn.dataset.side = side;
+    btn.dataset.delta = String(delta);
+    btn.setAttribute('aria-label', `${label} ${side} shades of ${colorName}`);
+    return btn;
+  };
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.max = String(MAX_STEPS);
+  input.inputMode = 'numeric';
+  input.value = String(state.counts[i][side]);
+  input.dataset.col = String(i);
+  input.dataset.side = side;
+  input.setAttribute('aria-label', `${side === 'darker' ? 'Darker' : 'Lighter'} shades of ${colorName}`);
+  box.append(button(-1, '−', 'Fewer'), input, button(1, '+', 'More'));
+  const label = document.createElement('span');
+  label.className = 'col-stepper-label';
+  label.textContent = side;
+  wrap.append(box, label);
+  return wrap;
+}
+
+function place(el: HTMLElement, col: number, row: number): HTMLElement {
+  el.style.gridColumn = String(col);
+  el.style.gridRow = String(row);
+  return el;
+}
+
+/**
+ * Grid rows, top to bottom: names, lighter steppers, lighter shades (highest
+ * step first), the original colours, darker shades (D1 first), darker
+ * steppers. Column 1 is a gutter that marks the original row.
+ */
+function renderGrid(combo: Combination) {
+  const { scales } = buildPalette(combo, state.counts, scaleOptions());
+  const { darker, lighter, rows } = alignRows(scales);
+  const n = combo.colors.length;
+  const baseRow = 3 + lighter;
+  els.grid.style.gridTemplateColumns = `var(--gutter) repeat(${n}, minmax(0, 1fr))`;
+  els.grid.style.gridTemplateRows = [
+    'auto',
+    'auto',
+    ...Array<string>(lighter).fill('var(--shade-h)'),
+    'var(--base-h)',
+    ...Array<string>(darker).fill('var(--shade-h)'),
+    'auto',
+  ].join(' ');
+
+  const cells: HTMLElement[] = [];
+  const mark = document.createElement('div');
+  mark.className = 'wada-mark';
+  mark.title = 'Wada Sanzō: the original colours, never altered';
+  mark.setAttribute('role', 'img');
+  mark.setAttribute('aria-label', 'Original colours (Wada Sanzō)');
+  const markText = document.createElement('span');
+  markText.lang = 'ja';
+  markText.textContent = '和田\u2005三造';
+  mark.append(markText);
+  cells.push(place(mark, 1, baseRow));
+
+  combo.colors.forEach((color, i) => {
+    const col = i + 2;
+    const name = document.createElement('div');
+    name.className = 'col-name';
+    name.textContent = color.name;
+    cells.push(place(name, col, 1));
+    cells.push(place(colStepper(i, 'lighter', color.name), col, 2));
+    rows[i].forEach((shade, j) => {
+      if (!shade) return;
+      // j runs dark to light and the base sits at index `darker`: darks go below it, lights above.
+      const el = swatch(shade);
+      if (shade.kind === 'base') {
+        if (i === 0) el.classList.add('first');
+        if (i === n - 1) el.classList.add('last');
+      }
+      cells.push(place(el, col, baseRow + (darker - j)));
+    });
+    cells.push(place(colStepper(i, 'darker', color.name), col, baseRow + darker + 1));
+  });
+  els.grid.replaceChildren(...cells);
+
+  els.related.replaceChildren(
+    ...combo.colors.map((color) => {
+      const row = document.createElement('div');
+      row.className = 'related-row';
+      const dot = document.createElement('span');
+      dot.className = 'related-dot';
+      dot.style.background = color.hex;
+      row.append(dot, relatedFor(color, combo.id));
+      return row;
+    }),
+  );
+}
+
 function render(push = false) {
   const combo = getCombination(state.comboId)!;
-  els.lighter.value = String(state.lighter);
-  els.darker.value = String(state.darker);
+  els.shades.value = String(state.shades);
+  els.mixedTag.hidden = !isMixed(state.counts, state.shades);
+  els.filler.checked = state.filler !== null;
+  if (state.filler) els.fillerColor.value = `#${state.filler}`;
   els.title.textContent = comboTitle(combo.id);
   els.colors.textContent = combo.colors.map((c) => c.name).join(' · ');
 
@@ -293,36 +431,23 @@ function render(push = false) {
     else btn.removeAttribute('aria-current');
   }
 
-  els.original.replaceChildren(
-    ...combo.colors.map((c) => {
-      const s = document.createElement('div');
-      s.style.background = c.hex;
-      return s;
-    }),
-  );
-
   els.stepSize.value = String(state.stepSize);
   els.hueShift.value = String(state.hueShift);
   els.stepSize.closest('.stepper-box')!.classList.toggle('inactive', state.spacingMode !== 'fixed');
   for (const btn of els.spacing.querySelectorAll<HTMLButtonElement>('button')) {
     btn.setAttribute('aria-checked', String(btn.dataset.spacing === state.spacingMode));
   }
-  const palette = buildPalette(combo, state.lighter, state.darker, scaleOptions());
-  els.preview.style.setProperty('--cols', String(state.darker + state.lighter + 1));
-  els.preview.replaceChildren(
-    ...palette.scales.map((scale) => {
-      const row = document.createElement('div');
-      row.className = 'scale';
-      const name = document.createElement('div');
-      name.className = 'scale-name';
-      name.textContent = scale.base.name;
-      const swatches = document.createElement('div');
-      swatches.className = 'scale-swatches';
-      swatches.append(...scale.shades.map(swatch));
-      row.append(name, swatches, relatedFor(scale.base, combo.id));
-      return row;
-    }),
-  );
+
+  // The grid is rebuilt: keep focus on the same per-colour control.
+  const focused = document.activeElement as HTMLElement | null;
+  const focusKey = focused && els.grid.contains(focused) ? focused.dataset : null;
+  renderGrid(combo);
+  if (focusKey?.col !== undefined) {
+    const selector = `[data-col="${focusKey.col}"][data-side="${focusKey.side}"]${
+      focusKey.delta ? `[data-delta="${focusKey.delta}"]` : ':not([data-delta])'
+    }`;
+    els.grid.querySelector<HTMLElement>(selector)?.focus();
+  }
   writeHash(push);
 }
 
@@ -337,19 +462,84 @@ function toast(message: string) {
 function exportPalette() {
   const combo = getCombination(state.comboId)!;
   const exporter = exporters[0];
-  const text = exporter.serialize(buildPalette(combo, state.lighter, state.darker, scaleOptions()));
+  const palette = buildPalette(combo, state.counts, scaleOptions());
+  if (state.filler) palette.filler = hexToRgb(state.filler);
+  const text = exporter.serialize(palette);
   const url = URL.createObjectURL(new Blob([text], { type: exporter.mimeType }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = paletteFileName(combo, state.lighter, state.darker, exporter.extension, scaleOptions());
+  a.download = paletteFileName(combo, state.counts, exporter.extension, scaleOptions(), state.filler !== null);
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function setSteps(key: 'lighter' | 'darker', value: number) {
-  state[key] = clampSteps(value);
+function hexToRgb(hex: string): [number, number, number] {
+  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+/** Sets one side of one colour. */
+function setCount(col: number, side: keyof StepCounts, value: number) {
+  if (!state.counts[col]) return;
+  state.counts[col] = { ...state.counts[col], [side]: clampSteps(value) };
   render();
 }
+
+function applyShades(value: number) {
+  state.shades = clampSteps(value);
+  state.counts = uniformCounts(state.counts.length, state.shades);
+  render();
+}
+
+// Setting every colour at once overwrites per-colour counts: ask first when there are any.
+let pendingShades: number | null = null;
+/** Where focus returns when the confirmation closes: the control that opened it, if any. */
+let confirmOpener: HTMLElement | null = null;
+
+function requestShades(value: number) {
+  const next = clampSteps(value);
+  if (!isMixed(state.counts, state.shades)) {
+    applyShades(next);
+    return;
+  }
+  pendingShades = next;
+  const n = state.counts.length;
+  els.confirmText.textContent = `Colours have different numbers of shades. Set all ${n} colours to ${next} darker and ${next} lighter ${
+    next === 1 ? 'shade' : 'shades'
+  }?`;
+  els.shades.value = String(next);
+  if (els.confirm.hidden) {
+    const active = document.activeElement as HTMLElement | null;
+    confirmOpener = active && active !== document.body ? active : null;
+  }
+  els.confirm.hidden = false;
+  els.confirmOk.focus();
+}
+
+function closeConfirm(apply: boolean) {
+  if (els.confirm.hidden) return;
+  const value = pendingShades;
+  pendingShades = null;
+  els.confirm.hidden = true;
+  if (apply && value !== null) applyShades(value);
+  else els.shades.value = String(state.shades);
+  if (confirmOpener?.isConnected) confirmOpener.focus();
+  else (document.activeElement as HTMLElement | null)?.blur();
+  confirmOpener = null;
+}
+
+els.confirmOk.addEventListener('click', () => closeConfirm(true));
+els.confirmCancel.addEventListener('click', () => closeConfirm(false));
+document.addEventListener('pointerdown', (e) => {
+  if (!els.confirm.hidden && !(e.target as HTMLElement).closest('.shades-control')) closeConfirm(false);
+});
+
+function setFiller(on: boolean) {
+  state.filler = on ? (els.fillerColor.value.slice(1).toLowerCase() || DEFAULT_FILLER) : null;
+  render();
+}
+
+els.filler.addEventListener('change', () => setFiller(els.filler.checked));
+els.fillerColor.addEventListener('input', () => setFiller(true));
 
 function setSpacing(mode: Spacing['mode']) {
   state.spacingMode = mode;
@@ -375,9 +565,13 @@ render();
 const current = listItems.get(state.comboId);
 if (current) els.list.scrollTop = current.offsetTop - els.list.clientHeight / 2;
 
+/** A new combination starts with the global number of shades on every colour. */
 function goTo(id: number) {
-  if (id === state.comboId || !getCombination(id)) return;
+  const combo = getCombination(id);
+  if (id === state.comboId || !combo) return;
+  closeConfirm(false);
   state.comboId = id;
+  state.counts = uniformCounts(combo.colors.length, state.shades);
   render(true);
 }
 
@@ -440,8 +634,7 @@ document.querySelectorAll<HTMLButtonElement>('.stepper-box button').forEach((btn
       setHueShift(state.hueShift + delta);
       return;
     }
-    const key = btn.dataset.target as 'lighter' | 'darker';
-    setSteps(key, state[key] + delta);
+    if (btn.dataset.target === 'shades') requestShades(state.shades + delta);
   });
 });
 
@@ -453,12 +646,22 @@ els.spacing.addEventListener('click', (e) => {
   if (btn?.dataset.spacing) setSpacing(btn.dataset.spacing as Spacing['mode']);
 });
 
-for (const key of ['lighter', 'darker'] as const) {
-  els[key].addEventListener('change', () => setSteps(key, Number(els[key].value)));
-}
+els.shades.addEventListener('change', () => requestShades(Number(els.shades.value)));
+
+els.grid.addEventListener('change', (e) => {
+  const input = (e.target as HTMLElement).closest<HTMLInputElement>('input[data-col]');
+  if (input) setCount(Number(input.dataset.col), input.dataset.side as keyof StepCounts, Number(input.value));
+});
 
 els.preview.addEventListener('click', async (e) => {
   const target = e.target as HTMLElement;
+  const stepBtn = target.closest<HTMLButtonElement>('button[data-col]');
+  if (stepBtn) {
+    const col = Number(stepBtn.dataset.col);
+    const side = stepBtn.dataset.side as keyof StepCounts;
+    setCount(col, side, state.counts[col][side] + Number(stepBtn.dataset.delta));
+    return;
+  }
   const related = target.closest<HTMLButtonElement>('.related-item');
   if (related) {
     goTo(Number(related.dataset.id));
@@ -479,13 +682,13 @@ els.preview.addEventListener('click', async (e) => {
 
 els.exportBtn.addEventListener('click', exportPalette);
 
-// Height of the original palette strip: a per-browser preference, kept out of the URL.
+// Height of the original colours' row: a per-browser preference, kept out of the URL.
 const ORIGINAL_HEIGHTS = ['s', 'm', 'l', 'xl'];
 const ORIGINAL_HEIGHT_KEY = 'wada-shades:original-height';
 
 function setOriginalHeight(height: string) {
   if (!ORIGINAL_HEIGHTS.includes(height)) return;
-  els.original.dataset.height = height;
+  els.preview.dataset.height = height;
   for (const btn of els.originalSize.querySelectorAll<HTMLButtonElement>('button')) {
     btn.setAttribute('aria-checked', String(btn.dataset.height === height));
   }
@@ -508,7 +711,8 @@ els.originalSize.addEventListener('click', (e) => {
 });
 
 window.addEventListener('hashchange', () => {
-  Object.assign(state, readHash());
+  closeConfirm(false);
+  Object.assign(state, readHash(state.comboId));
   render();
   revealInList();
 });
@@ -583,6 +787,11 @@ els.shortcuts.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || els.shortcuts.open) return;
   const target = e.target as HTMLElement;
+  if (!els.confirm.hidden && e.key === 'Escape') {
+    closeConfirm(false);
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Escape' && (target === els.search || state.query)) {
     els.search.value = '';
     setQuery('');
@@ -601,17 +810,12 @@ document.addEventListener('keydown', (e) => {
     case 'k':
       step(-1);
       break;
-    case 'd':
-      setSteps('darker', state.darker + 1);
+    case '+':
+    case '=':
+      requestShades(state.shades + 1);
       break;
-    case 'D':
-      setSteps('darker', state.darker - 1);
-      break;
-    case 'l':
-      setSteps('lighter', state.lighter + 1);
-      break;
-    case 'L':
-      setSteps('lighter', state.lighter - 1);
+    case '-':
+      requestShades(state.shades - 1);
       break;
     case 'e':
       exportPalette();

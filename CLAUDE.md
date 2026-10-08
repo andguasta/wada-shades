@@ -6,8 +6,8 @@ how the project is run, the decisions behind it and the owner's preferences, so 
 ## What this is
 
 Wada Shades: a static web app (Vite + TypeScript, no framework) over the 348 colour combinations of Sanzo Wada's
-*A Dictionary of Colour Combinations*. For the selected combination it generates N darker and M lighter shades per
-colour, previews them and exports the palette as a GIMP `.gpl` file. Main use case of the owner: pixel art shading.
+*A Dictionary of Colour Combinations*. For the selected combination it generates darker and lighter shades per
+colour (one global count, or one per colour), previews them and exports the palette as a GIMP `.gpl` file. Main use case of the owner: pixel art shading.
 
 ## Commands
 
@@ -28,7 +28,8 @@ Before every push: `npm test`, `npm run build`, and for UI changes a check in a 
 src/data/colors.json        dataset, copied verbatim from mattdesl/dictionary-of-colour-combinations (MIT)
 src/core/data.ts            colours, NAME_FIXES, the 348 combinations, relatedCombinations()
 src/core/shades.ts          shade generation: buildScale(base, lighter, darker, ScaleOptions)
-src/core/palette.ts         buildPalette(), comboTitle(), paletteFileName()
+src/core/steps.ts           StepCounts per colour, mixed state, URL parameters (n, d, l)
+src/core/palette.ts         buildPalette(), alignRows(), comboTitle(), paletteFileName()
 src/core/nearest.ts         hex parsing and closest Wada colours (ΔE OK)
 src/core/vision.ts          protan/deutan simulation matrices
 src/core/export/            Exporter interface + gpl.ts; new formats register in export/index.ts
@@ -56,14 +57,23 @@ Keep logic in `src/core` (pure, tested) and only DOM code in `main.ts`.
   overshooting, greys unchanged.
 - **Colour-blindness simulation** is view only (SVG feColorMatrix filter on `.app`): hex labels, copies and exports keep
   real colours. Only protan and deutan, at full severity, by owner's choice.
-- **Export:** one `.gpl` for the selected combination; one row per colour, dark to light, `Columns` = steps per row;
-  names `<Colour> dark 2`, `<Colour>`, `<Colour> light 1`. File name `sanzo-wada-042-d2-l2[-step8][-hue10].gpl`.
+- **Steps per colour:** at most 8 per side (`MAX_STEPS`). The toolbar **Shades** stepper sets the same darker and
+  lighter count on every colour; each colour has its own darker and lighter steppers. Counts that differ from the
+  global value make the palette "mixed": changing Shades then asks for confirmation. A new combination starts with
+  the global value on every colour.
+- **Preview layout:** one column per colour; the original colours form the middle row (marked 和田 三造 in a left
+  gutter), lighter shades above (L1 next to it), darker below. Columns are aligned on that row (`alignRows`).
+- **Export:** one `.gpl` for the selected combination; one row per colour, dark to light; names `<Colour> dark 2`,
+  `<Colour>`, `<Colour> light 1`. Uneven rows: no padding and no repeated colours by default (`Columns` = longest
+  row); the optional filler (black by default, named `Filler`) pads them so the bases share a column. The owner uses
+  Aseprite. File name `sanzo-wada-042-d2-l2[-step8][-hue10][-fill].gpl`, per-colour counts as `-d4.2-l2.1`.
 
 ## UI conventions
 
-- State that changes the output lives in the URL hash: `c` combination, `d`/`l` steps, `s` fixed step size (absent =
-  spread), `h` hue shift (absent = 0). Combination changes push history (Back works); other changes replace it.
-- Per-browser view preferences (original palette height) use `localStorage`, wrapped in try/catch. Not in the URL.
+- State that changes the output lives in the URL hash: `c` combination, `d`/`l` steps (one value, or one per colour
+  with `n` = global value when mixed), `s` fixed step size (absent = spread), `h` hue shift (absent = 0), `f` filler
+  colour (absent = off). Combination changes push history (Back works); other changes replace it.
+- Per-browser view preferences (height of the original colours' row) use `localStorage`, wrapped in try/catch. Not in the URL.
 - Keyboard shortcuts live in one `keydown` handler in `main.ts`. Any change must be mirrored in the shortcuts dialog
   (`index.html`), control tooltips, and the README table. Shortcuts are ignored while typing in inputs, except Esc.
 - Interface text is English with British spelling ("colour"). Light and dark theme via CSS variables in `style.css`;

@@ -44,22 +44,21 @@
             <p id="combo-colors"></p>
           </div>
           <div class="controls">
-            <label class="stepper">
-              <span>Darker</span>
-              <span class="stepper-box">
-                <button type="button" data-target="darker" data-delta="-1" aria-label="Fewer darker steps" title="Fewer darker steps (Shift+D)">−</button>
-                <input type="number" id="darker" min="0" max="10" value="2" inputmode="numeric" />
-                <button type="button" data-target="darker" data-delta="1" aria-label="More darker steps" title="More darker steps (D)">+</button>
+            <div class="stepper shades-control">
+              <span class="label-row">Shades <span class="mixed-tag" id="mixed-tag" hidden title="Some colours have their own number of shades">mixed</span></span>
+              <span class="stepper-box" title="Darker and lighter shades for every colour (−, +)">
+                <button type="button" data-target="shades" data-delta="-1" aria-label="Fewer shades for every colour" aria-keyshortcuts="-">−</button>
+                <input type="number" id="shades" min="0" max="8" value="2" inputmode="numeric" aria-label="Darker and lighter shades for every colour" />
+                <button type="button" data-target="shades" data-delta="1" aria-label="More shades for every colour" aria-keyshortcuts="+">+</button>
               </span>
-            </label>
-            <label class="stepper">
-              <span>Lighter</span>
-              <span class="stepper-box">
-                <button type="button" data-target="lighter" data-delta="-1" aria-label="Fewer lighter steps" title="Fewer lighter steps (Shift+L)">−</button>
-                <input type="number" id="lighter" min="0" max="10" value="2" inputmode="numeric" />
-                <button type="button" data-target="lighter" data-delta="1" aria-label="More lighter steps" title="More lighter steps (L)">+</button>
-              </span>
-            </label>
+              <div class="confirm-pop" id="confirm" role="dialog" aria-labelledby="confirm-text" hidden>
+                <p id="confirm-text"></p>
+                <div class="confirm-actions">
+                  <button type="button" class="link-button" id="confirm-cancel">Cancel</button>
+                  <button type="button" class="primary" id="confirm-ok">Set all</button>
+                </div>
+              </div>
+            </div>
             <div class="control">
               <span class="control-label">Spacing</span>
               <span class="spacing-row">
@@ -90,23 +89,34 @@
                 <button type="button" role="radio" data-vision="deutan" aria-checked="false">Deutan</button>
               </div>
             </div>
-            <button type="button" class="primary" id="export" title="Export .gpl (E)" aria-keyshortcuts="E">Export .gpl</button>
+            <div class="control">
+              <span class="control-label">Export</span>
+              <span class="export-row">
+                <label class="filler-toggle" title="When colours have different numbers of shades, pad the shorter rows of the .gpl with a filler colour so the original colours line up in one column">
+                  <input type="checkbox" id="filler" /> Filler
+                  <input type="color" id="filler-color" value="#000000" aria-label="Filler colour" />
+                </label>
+                <button type="button" class="primary" id="export" title="Export .gpl (E)" aria-keyshortcuts="E">Export .gpl</button>
+              </span>
+            </div>
           </div>
         </header>
 
         <p class="vision-note" id="vision-note" hidden></p>
         <div class="original-bar">
-          <span class="original-label">Original palette</span>
-          <div class="segmented compact" role="radiogroup" aria-label="Original palette height" id="original-size">
+          <span class="original-label">Lighter shades above, Wada&rsquo;s original colours in the middle, darker below</span>
+          <div class="segmented compact" role="radiogroup" aria-label="Height of the original colours" id="original-size">
             <button type="button" role="radio" data-height="s" aria-checked="true">S</button>
             <button type="button" role="radio" data-height="m" aria-checked="false">M</button>
             <button type="button" role="radio" data-height="l" aria-checked="false">L</button>
             <button type="button" role="radio" data-height="xl" aria-checked="false">XL</button>
           </div>
         </div>
-        <section class="original" aria-label="Original combination" id="original" data-height="s"></section>
-        <section class="preview" aria-label="Shade preview" id="preview"></section>
-        <p class="hint">Click a swatch to copy its hex, or a combination under a colour to open it. The outlined swatch is Wada&rsquo;s original colour, never altered. A swatch marked <span class="flag-sample">limit</span> had no room for a full step: it stops at the lightness limit, and the steps after it repeat the same colour.</p>
+        <section class="preview" aria-label="Shade preview" id="preview" data-height="s">
+          <div class="shades-grid" id="shades-grid"></div>
+          <div class="related-all" id="related"></div>
+        </section>
+        <p class="hint">Click a swatch to copy its hex, or a combination under the colours to open it. The middle row, marked 和田 三造, holds Wada&rsquo;s original colours, never altered. The steppers above and below each colour set its own number of lighter and darker shades; <strong>Shades</strong> in the toolbar sets every colour at once. A swatch marked <span class="flag-sample">limit</span> had no room for a full step: it stops at the lightness limit, and the steps after it repeat the same colour.</p>
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -119,10 +129,7 @@
         <tbody>
           <tr><td><kbd>↓</kbd> <kbd>J</kbd></td><td>Next combination</td></tr>
           <tr><td><kbd>↑</kbd> <kbd>K</kbd></td><td>Previous combination</td></tr>
-          <tr><td><kbd>D</kbd></td><td>More darker steps</td></tr>
-          <tr><td><kbd>Shift</kbd> <kbd>D</kbd></td><td>Fewer darker steps</td></tr>
-          <tr><td><kbd>L</kbd></td><td>More lighter steps</td></tr>
-          <tr><td><kbd>Shift</kbd> <kbd>L</kbd></td><td>Fewer lighter steps</td></tr>
+          <tr><td><kbd>+</kbd> <kbd>−</kbd></td><td>More / fewer shades for every colour</td></tr>
           <tr><td><kbd>S</kbd></td><td>Toggle spacing: spread, fixed</td></tr>
           <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Smaller / larger fixed step</td></tr>
           <tr><td><kbd>H</kbd></td><td>More hue shift (+2°)</td></tr>

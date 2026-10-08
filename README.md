@@ -21,15 +21,23 @@ npm run cover      # regenerate the README cover (docs/cover.png)
 ## Usage
 
 1. Pick a combination from the list (filter by number of colours, search by name, number or hex).
-2. Set how many **Darker** and **Lighter** steps to generate (0 to 10 on each side), and how far apart they are
-   with **Spacing** (see below).
-3. Check the preview: Wada's original colour is outlined and never altered. Click a shade to copy its hex.
-4. Under each colour, the other combinations that use it are listed: click one to open it with the same step settings.
-5. **Export .gpl** downloads the palette of the selected combination.
-6. The **S/M/L/XL** control above the original palette sets its height; the browser remembers the choice.
+2. Set how many shades to generate with **Shades** (0 to 8 darker and as many lighter, on every colour), and how
+   far apart they are with **Spacing** (see below).
+3. Check the preview: one column per colour, with Wada's original colours in the middle row (marked 和田 三造, never
+   altered), lighter shades above and darker shades below. Click a shade to copy its hex.
+4. Each colour has its own **lighter** stepper above its column and **darker** stepper below it, so one colour can
+   have 4 shades and another 2. While the colours differ, the toolbar shows **mixed**, and changing **Shades** asks
+   for confirmation before setting every colour back to the same number.
+5. Below the grid, the other combinations that use each colour are listed: click one to open it with **Shades** on
+   every colour.
+6. **Export .gpl** downloads the palette of the selected combination. **Filler** (see the `.gpl` format) pads the
+   shorter colours so the original colours line up in one column.
+7. The **S/M/L/XL** control above the grid sets the height of the original colours' row; the browser remembers the choice.
 
-The state lives in the URL (`#c=42&d=2&l=2`, plus `&s=8` for fixed spacing and `&h=10` for hue shift), so a configuration can be bookmarked or shared.
-The browser's Back button returns to the previous combination.
+The state lives in the URL (`#c=42&d=2&l=2`; when colours have their own counts, `#c=42&n=2&d=4,2&l=2,1` with the
+global value in `n` and one count per colour; plus `&s=8` for fixed spacing, `&h=10` for hue shift and `&f=000000`
+for the filler), so a configuration can be bookmarked or shared. The browser's Back button returns to the previous
+combination.
 
 ### Search by colour
 
@@ -51,8 +59,7 @@ It only changes the view: displayed hex values, copies and exports always keep t
 | Key | Action |
 | --- | --- |
 | `↓` `J` / `↑` `K` | Next / previous combination in the filtered list |
-| `D` / `Shift+D` | One more / one fewer darker step |
-| `L` / `Shift+L` | One more / one fewer lighter step |
+| `+` / `-` | One more / one fewer shade on every colour |
 | `S` | Toggle spacing: spread, fixed |
 | `[` / `]` | Smaller / larger fixed step |
 | `H` / `Shift+H` | More / less hue shift (2° per press) |
@@ -132,9 +139,13 @@ Columns: 5
 ...
 ```
 
-One row per colour of the combination, ordered from darkest to lightest (`Columns` = total steps per row).
-File name: `sanzo-wada-042-d2-l2.gpl`; fixed spacing adds `-step8` and hue shift adds `-hue10`,
-for example `sanzo-wada-042-d2-l2-step8-hue10.gpl`.
+One row per colour of the combination, ordered from darkest to lightest (`Columns` = steps per row).
+When colours have different numbers of shades, the rows are written back to back with no padding and `Columns` is
+the longest row, so no colour is repeated. With **Filler** on, the shorter rows are padded with the filler colour
+(black by default, named `Filler`) before the darkest and after the lightest shade, so every row has the same
+length and the original colours sit in one column. When all colours have the same counts nothing is padded.
+File name: `sanzo-wada-042-d2-l2.gpl`; per-colour counts give `-d4.2-l2.1`, fixed spacing adds `-step8`,
+hue shift adds `-hue10` and padding with the filler adds `-fill`, for example `sanzo-wada-042-d4.2-l2.1-step8-fill.gpl`.
 
 ## README cover
 
@@ -149,7 +160,8 @@ so the result can differ slightly between systems.
 ```
 src/core/data.ts           dataset, name fixes, the 348 combinations and related combinations
 src/core/shades.ts         shade generation
-src/core/palette.ts        palette of a combination, title and file name
+src/core/steps.ts          shades per colour and their URL parameters
+src/core/palette.ts        palette of a combination, row alignment, title and file name
 src/core/nearest.ts        closest-colour search (ΔE OK)
 src/core/vision.ts         protanopia and deuteranopia simulation
 src/core/export/           pluggable exporters (gpl; other formats such as a hex list go here)

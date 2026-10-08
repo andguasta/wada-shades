@@ -32,7 +32,7 @@ export const LIGHT_LIMIT = 0.99;
 export const DARK_LIMIT = 0.1;
 /** Exponent of the chroma taper: C = C0 * (1 - t^CHROMA_TAPER). */
 export const CHROMA_TAPER = 2;
-export const MAX_STEPS = 10;
+export const MAX_STEPS = 8;
 
 /** Fixed step size limits and default, in OKLCH lightness (0 to 1). */
 export const MIN_STEP_SIZE = 0.02;
@@ -96,7 +96,7 @@ export interface ShadeScale {
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');
 
-function clampSteps(n: number): number {
+export function clampSteps(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.min(MAX_STEPS, Math.max(0, Math.round(n)));
 }
