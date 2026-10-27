@@ -47,7 +47,7 @@ restate the code or document obvious fields; the reasoning lives here and in the
 
 - **The base colour is never altered.** Its swatch, the `.gpl` row and the hex all use the dataset's RGB values, never a
   round-tripped conversion.
-- **`colors.json` stays untouched.** Name corrections go in `NAME_FIXES` (`data.ts`), documented in the README table.
+- **`colors.json` stays untouched.** Name corrections go in `NAME_FIXES` (`data.ts`); the README only mentions them, without the full list.
   Search matches both `name` and `sourceName`. Wada's names follow Ridgway's *Color Standards and Color Nomenclature*
   (1912), which is the reference for spelling.
 - **Shades are computed in OKLCH** with culori. Gamut mapping uses `clampChroma` (keeps L and H exactly);

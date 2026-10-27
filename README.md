@@ -115,24 +115,9 @@ values were converted with proper ICC profiles, so they are closer to the printe
 [dblodorn/sanzo-wada](https://github.com/dblodorn/sanzo-wada) values.
 
 Wada took his colour names from Robert Ridgway's *Color Standards and Color Nomenclature* (1912). A few names in the
-dataset have typos. I fix them in the app (`NAME_FIXES` in `src/core/data.ts`) and leave the JSON alone, so it can
-still be checked against the source. Search finds both spellings.
-
-| Dataset | Shown as |
-| --- | --- |
-| Rosolanc Purple | Rosolane Purple |
-| Pomegranite Purple | Pomegranate Purple |
-| Vistoris Lake | Victoria Lake |
-| Sulpher Yellow | Sulphur Yellow |
-| Krongbergs Green | Kronberg's Green |
-| Artemesia Green | Artemisia Green |
-| Calamine BLue | Calamine Blue |
-| Cerulian Blue | Cerulean Blue |
-| Antwarp Blue | Antwerp Blue |
-| Vandar Poel's Blue | Vanderpoel's Blue |
-| Veronia Purple | Vernonia Purple |
-| Eugenia Red \| A, Eugenia Red \| B | Eugenia Red A, Eugenia Red B |
-| Grayish Lavender - A, Grayish Lavender - B | Grayish Lavender A, Grayish Lavender B |
+dataset have typos, like *Cerulian Blue* or *Pomegranite Purple*. I fix them in the app (`NAME_FIXES` in
+`src/core/data.ts`) and leave the JSON alone, so it can still be checked against the source. Search finds both
+spellings.
 
 If you love these colours, get the book. Seigensha publishes the English edition, and it's worth having on paper.
 
