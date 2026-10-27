@@ -7,7 +7,6 @@ export function comboTitle(id: number): string {
   return `Sanzo Wada ${String(id).padStart(3, '0')}`;
 }
 
-/** One StepCounts per colour of the combination, in order. */
 export function buildPalette(
   combo: Combination,
   counts: StepCounts[],
@@ -22,11 +21,7 @@ export function buildPalette(
   };
 }
 
-/**
- * Scales padded to a common length so the base colours line up: each row,
- * dark to light, has `darker` cells before the base and `lighter` after it,
- * with null where a colour has fewer steps.
- */
+/** Pads rows with null so the base colours share a column. */
 export function alignRows(scales: ShadeScale[]): { darker: number; lighter: number; rows: (Shade | null)[][] } {
   const count = (s: ShadeScale, kind: Shade['kind']) => s.shades.filter((x) => x.kind === kind).length;
   const darker = Math.max(0, ...scales.map((s) => count(s, 'dark')));
@@ -39,11 +34,7 @@ export function alignRows(scales: ShadeScale[]): { darker: number; lighter: numb
   return { darker, lighter, rows };
 }
 
-/**
- * e.g. sanzo-wada-042-d2-l2.gpl; colours with their own counts give
- * -d4.2.1-l2.1.3, fixed spacing adds -step8, hue shift -hue10, and a filler
- * that pads uneven rows -fill.
- */
+/** e.g. sanzo-wada-042-d4.2.1-l2.1.3-step8-hue10-fill.gpl */
 export function paletteFileName(
   combo: Combination,
   counts: StepCounts[],

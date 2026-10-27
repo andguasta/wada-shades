@@ -1,11 +1,5 @@
-// Renders scripts/cover/index.html and saves it as the README cover.
-//
-//   npm run cover                 writes docs/cover.png
-//   npm run cover -- out.png      writes another path
-//
-// Uses your installed Google Chrome. To use another Chromium build, set
-// COVER_BROWSER to its executable path. Edit the combinations and shade
-// settings at the top of scripts/cover/cover.ts.
+// Renders scripts/cover/index.html to docs/cover.png (or the path given as argument).
+// Uses the installed Chrome, or the Chromium at COVER_BROWSER.
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -19,7 +13,6 @@ async function launchBrowser() {
   try {
     return await chromium.launch({ channel: 'chrome' });
   } catch {
-    // No Chrome installed: fall back to a Playwright-managed Chromium, if any.
     return chromium.launch();
   }
 }

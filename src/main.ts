@@ -26,20 +26,16 @@ import { feColorMatrixValues, VISION_LABELS, VISION_MODES, type VisionMode } fro
 
 interface State {
   comboId: number;
-  /** Global number of darker and lighter shades; new combinations start with it on every colour. */
   shades: number;
-  /** Darker and lighter shades of each colour of the current combination, in order. */
   counts: StepCounts[];
-  /** Filler colour (hex without #) padding uneven rows of the export, or null when off. */
+  /** Hex without #, null when off. */
   filler: string | null;
   spacingMode: Spacing['mode'];
-  /** Fixed step size as OKLCH lightness × 100, kept while spread is active. */
+  /** OKLCH lightness × 100, kept while spread is active. */
   stepSize: number;
-  /** Hue rotation in degrees per step; 0 is off. */
   hueShift: number;
   size: number;
   query: string;
-  /** In colour search, the dataset index of the one match the list is narrowed to. */
   matchFocus: number | null;
 }
 
@@ -87,7 +83,6 @@ const clampStep = (n: number) =>
 const DEFAULT_FILLER = '000000';
 const parseFiller = (text: string | null) => (text && /^[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : null);
 
-/** fallbackId: the combination to use when the hash names none. */
 function readHash(fallbackId: number): Partial<State> {
   const params = new URLSearchParams(location.hash.slice(1));
   const out: Partial<State> = {};
@@ -99,9 +94,7 @@ function readHash(fallbackId: number): Partial<State> {
   );
   out.shades = steps.shades;
   out.counts = steps.counts;
-  // f=<hex> pads uneven export rows with that colour; no f means no filler.
   out.filler = parseFiller(params.get('f'));
-  // s=<size> means fixed spacing; no s means spread.
   out.spacingMode = params.has('s') ? 'fixed' : 'spread';
   if (params.has('s')) out.stepSize = clampStep(Number(params.get('s')));
   out.hueShift = params.has('h') ? clampHue(Number(params.get('h'))) : 0;
@@ -130,7 +123,6 @@ function scaleOptions(): ScaleOptions {
 
 const MATCH_LIMIT = 5;
 
-/** push adds a history entry, so Back returns to the previous combination. */
 function writeHash(push = false) {
   const fixed = state.spacingMode === 'fixed' ? `&s=${state.stepSize}` : '';
   const hue = state.hueShift > 0 ? `&h=${state.hueShift}` : '';
@@ -141,7 +133,6 @@ function writeHash(push = false) {
   else history.replaceState(null, '', hash);
 }
 
-/** Black or white text, whichever reads better on the swatch. */
 function inkFor([r, g, b]: [number, number, number]): string {
   const lin = (v: number) => {
     const s = v / 255;
@@ -163,7 +154,6 @@ function matches(combo: Combination): boolean {
 
 const listItems = new Map<number, HTMLLIElement>();
 
-/** Button with the combination number and its colours; data-id drives navigation. */
 function comboButton(combo: Combination, className: string): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -238,7 +228,6 @@ function applyFilter() {
   if (state.matchFocus !== null && !found.some((m) => m.color.index === state.matchFocus)) state.matchFocus = null;
   renderMatchPanel(hex, found);
 
-  // Colour search: rank of each matched colour, nearest first.
   const rank = new Map<number, number>();
   found.forEach((m, i) => {
     if (state.matchFocus === null || state.matchFocus === m.color.index) rank.set(m.color.index, i);
@@ -254,7 +243,6 @@ function applyFilter() {
     listItems.get(combo.id)!.hidden = !show;
     if (show) shown.push(combo);
   }
-  // Order by nearest matched colour in colour search, by number otherwise.
   const ordered = hex ? [...shown].sort((a, b) => comboRank(a) - comboRank(b) || a.id - b.id) : combinations;
   els.list.append(...ordered.map((c) => listItems.get(c.id)!));
 
@@ -311,7 +299,6 @@ function relatedFor(color: Combination['colors'][number], comboId: number): HTML
   return wrap;
 }
 
-/** Small stepper for one side of one colour; data-col and data-side drive the handlers. */
 function colStepper(i: number, side: keyof StepCounts, colorName: string): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = `col-stepper ${side}`;
@@ -350,11 +337,8 @@ function place(el: HTMLElement, col: number, row: number): HTMLElement {
   return el;
 }
 
-/**
- * Grid rows, top to bottom: names, lighter steppers, lighter shades (highest
- * step first), the original colours, darker shades (D1 first), darker
- * steppers. Column 1 is a gutter that marks the original row.
- */
+// Rows: names, lighter steppers, lighter shades, originals, darker shades, darker steppers.
+// Column 1 is the gutter marking the originals.
 function renderGrid(combo: Combination) {
   const { scales } = buildPalette(combo, state.counts, scaleOptions());
   const { darker, lighter, rows } = alignRows(scales);
@@ -391,7 +375,6 @@ function renderGrid(combo: Combination) {
     cells.push(place(colStepper(i, 'lighter', color.name), col, 2));
     rows[i].forEach((shade, j) => {
       if (!shade) return;
-      // j runs dark to light and the base sits at index `darker`: darks go below it, lights above.
       const el = swatch(shade);
       if (shade.kind === 'base') {
         if (i === 0) el.classList.add('first');
@@ -438,7 +421,7 @@ function render(push = false) {
     btn.setAttribute('aria-checked', String(btn.dataset.spacing === state.spacingMode));
   }
 
-  // The grid is rebuilt: keep focus on the same per-colour control.
+  // The grid is rebuilt, so restore focus.
   const focused = document.activeElement as HTMLElement | null;
   const focusKey = focused && els.grid.contains(focused) ? focused.dataset : null;
   renderGrid(combo);
@@ -477,7 +460,6 @@ function hexToRgb(hex: string): [number, number, number] {
   return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 }
 
-/** Sets one side of one colour. */
 function setCount(col: number, side: keyof StepCounts, value: number) {
   if (!state.counts[col]) return;
   state.counts[col] = { ...state.counts[col], [side]: clampSteps(value) };
@@ -490,9 +472,7 @@ function applyShades(value: number) {
   render();
 }
 
-// Setting every colour at once overwrites per-colour counts: ask first when there are any.
 let pendingShades: number | null = null;
-/** Where focus returns when the confirmation closes: the control that opened it, if any. */
 let confirmOpener: HTMLElement | null = null;
 
 function requestShades(value: number) {
@@ -546,7 +526,6 @@ function setSpacing(mode: Spacing['mode']) {
   render();
 }
 
-/** Changing the step size implies fixed spacing. */
 function setHueShift(value: number) {
   state.hueShift = clampHue(value);
   render();
@@ -561,11 +540,10 @@ function setStepSize(value: number) {
 renderList();
 applyFilter();
 render();
-// Scroll only the list, never the page (scrollIntoView would move the page on mobile).
+// scrollIntoView would also scroll the page on mobile.
 const current = listItems.get(state.comboId);
 if (current) els.list.scrollTop = current.offsetTop - els.list.clientHeight / 2;
 
-/** A new combination starts with the global number of shades on every colour. */
 function goTo(id: number) {
   const combo = getCombination(id);
   if (id === state.comboId || !combo) return;
@@ -575,7 +553,6 @@ function goTo(id: number) {
   render(true);
 }
 
-/** Bring the current combination into view in the sidebar, if the filters show it. */
 function revealInList() {
   const li = listItems.get(state.comboId);
   if (!li || li.hidden) return;
@@ -682,7 +659,6 @@ els.preview.addEventListener('click', async (e) => {
 
 els.exportBtn.addEventListener('click', exportPalette);
 
-// Height of the original colours' row: a per-browser preference, kept out of the URL.
 const ORIGINAL_HEIGHTS = ['s', 'm', 'l', 'xl'];
 const ORIGINAL_HEIGHT_KEY = 'wada-shades:original-height';
 
@@ -695,7 +671,7 @@ function setOriginalHeight(height: string) {
   try {
     localStorage.setItem(ORIGINAL_HEIGHT_KEY, height);
   } catch {
-    // Storage unavailable (private mode, blocked): the choice lasts for this page only.
+    // Storage blocked: the choice lasts for this page only.
   }
 }
 
@@ -717,8 +693,7 @@ window.addEventListener('hashchange', () => {
   revealInList();
 });
 
-// Colour vision simulation: an SVG colour-matrix filter over the whole app.
-// View only; copied hex values and exports always use the real colours.
+// View only: copies and exports keep the real colours.
 (function installVisionFilters() {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
@@ -756,7 +731,7 @@ els.vision.addEventListener('click', (e) => {
   if (btn?.dataset.vision) setVision(btn.dataset.vision as VisionMode);
 });
 
-// Keyboard shortcuts. Listed in the #shortcuts dialog; keep both in sync.
+// Keep in sync with the #shortcuts dialog, tooltips and the README.
 function visibleIds(): number[] {
   return [...els.list.children]
     .filter((li) => !(li as HTMLLIElement).hidden)
@@ -767,7 +742,6 @@ function step(delta: 1 | -1) {
   const ids = visibleIds();
   if (!ids.length) return;
   const i = ids.indexOf(state.comboId);
-  // Outside the filtered list: start from its first (or last) entry.
   const next = i === -1 ? ids[delta > 0 ? 0 : ids.length - 1] : ids[i + delta];
   if (next === undefined) return;
   goTo(next);
@@ -781,7 +755,7 @@ function openShortcuts() {
 $<HTMLButtonElement>('shortcuts-open').addEventListener('click', openShortcuts);
 $<HTMLButtonElement>('shortcuts-close').addEventListener('click', () => els.shortcuts.close());
 els.shortcuts.addEventListener('click', (e) => {
-  if (e.target === els.shortcuts) els.shortcuts.close(); // click on the backdrop
+  if (e.target === els.shortcuts) els.shortcuts.close(); // backdrop
 });
 
 document.addEventListener('keydown', (e) => {

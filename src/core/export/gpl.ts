@@ -1,12 +1,6 @@
 import { alignRows } from '../palette';
 import type { Exporter, PaletteExport } from './types';
 
-/**
- * GIMP palette (.gpl). One row per base colour, ordered dark to light.
- * Colours can have different numbers of steps: without a filler the rows are
- * written back to back and Columns is the longest row; with a filler the
- * shorter rows are padded so the base colours line up in one column.
- */
 function sanitize(text: string): string {
   return text.replace(/[\r\n\t]+/g, ' ').trim();
 }

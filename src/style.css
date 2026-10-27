@@ -308,7 +308,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
 .segmented.compact { grid-template-columns: repeat(4, 36px); font-size: 12px; }
 .segmented.compact button { padding: 3px 0; }
 
-/* Shades grid: one column per colour, lighter shades above the original colours, darker below. */
+/* Shades grid */
 .preview {
   --gutter: 34px;
   --shade-h: 52px;
@@ -454,7 +454,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
   .shades-grid .swatch:not(.swatch-base) .swatch-label { display: none; }
 }
 
-/* Global shades control: mixed tag and the confirmation before overwriting per-colour counts. */
+/* Global shades control */
 .shades-control { position: relative; }
 .label-row { display: inline-flex; align-items: center; gap: 6px; }
 .mixed-tag {
@@ -500,7 +500,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--text); outl
 .filler-toggle input[type='color'] { width: 24px; height: 22px; min-height: 0; padding: 1px; }
 .filler-toggle:has(#filler:not(:checked)) input[type='color'] { opacity: 0.4; }
 
-/* Same height for every toolbar control so their labels line up. */
+/* Equal height so toolbar labels align. */
 .controls .stepper-box,
 .controls .segmented,
 .controls .filler-toggle,

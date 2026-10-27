@@ -1,8 +1,4 @@
-/**
- * Colour vision deficiency simulation (Machado, Oliveira & Fernandes, 2009),
- * severity 1.0: full protanopia / deuteranopia, the worst case of each type.
- * Matrices apply to linear RGB; every row sums to 1, so greys are unchanged.
- */
+// Machado, Oliveira & Fernandes (2009) matrices at severity 1.0, applied in linear RGB.
 export type VisionMode = 'normal' | 'protan' | 'deutan';
 
 export const VISION_MODES: VisionMode[] = ['normal', 'protan', 'deutan'];
@@ -29,7 +25,6 @@ const toGamma = (v: number) => {
   return Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055));
 };
 
-/** How an sRGB colour (0 to 255 channels) appears with the given deficiency. */
 export function simulate(rgb: [number, number, number], mode: VisionMode): [number, number, number] {
   if (mode === 'normal') return [...rgb];
   const m = VISION_MATRICES[mode];
@@ -41,7 +36,6 @@ export function simulate(rgb: [number, number, number], mode: VisionMode): [numb
   ];
 }
 
-/** Values for an SVG feColorMatrix (4×5, linear RGB) applying the simulation. */
 export function feColorMatrixValues(mode: Exclude<VisionMode, 'normal'>): string {
   const m = VISION_MATRICES[mode];
   return [...m.slice(0, 3), 0, 0, ...m.slice(3, 6), 0, 0, ...m.slice(6, 9), 0, 0, 0, 0, 0, 1, 0].join(' ');

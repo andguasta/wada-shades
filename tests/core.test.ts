@@ -65,7 +65,6 @@ describe('buildScale', () => {
       expect(base.hex).toBe(color.hex);
       expect(base.rgb).toEqual(color.rgb);
       const ls = shades.map((s) => lightness(s.hex));
-      // Strictly monotonic, except a white base which has nothing lighter.
       for (let i = 1; i < ls.length; i++) {
         if (color.hex === '#ffffff' && i > 3) expect(shades[i].hex).toBe('#ffffff');
         else expect(ls[i]).toBeGreaterThan(ls[i - 1]);
@@ -229,7 +228,7 @@ describe('gpl export', () => {
 });
 
 describe('per-colour step counts', () => {
-  const combo = getCombination(200)!; // three colours
+  const combo = getCombination(200)!;
   const uneven: StepCounts[] = [
     { darker: 4, lighter: 2 },
     { darker: 2, lighter: 1 },
@@ -265,7 +264,6 @@ describe('per-colour step counts', () => {
     const rows = lines.slice(4);
     expect(rows).toHaveLength(3 * 8);
     expect(rows.filter((l) => l === '  0   0   0\tFiller')).toHaveLength(24 - (7 + 4 + 5));
-    // The base colours sit in the same column of every row.
     for (let i = 0; i < 3; i++) expect(rows[i * 8 + 4]).toMatch(new RegExp(`\t${combo.colors[i].name}$`));
   });
 
@@ -295,11 +293,8 @@ describe('per-colour step counts', () => {
 
   it('reads older and malformed links', () => {
     const read = (n: string | null, d: string | null, l: string | null) => parseStepParams({ n, d, l }, 3);
-    // Older links had one darker and one lighter count for all colours.
     expect(read(null, '2', '3')).toEqual({ shades: 2, counts: Array(3).fill({ darker: 2, lighter: 3 }) });
-    // Counts above the maximum are clamped.
     expect(read(null, '10', '10').shades).toBe(MAX_STEPS);
-    // A list of the wrong length falls back to the global value.
     expect(read('3', '1,2', null)).toEqual({ shades: 3, counts: uniformCounts(3, 3) });
     expect(read(null, null, null)).toEqual({ shades: 2, counts: uniformCounts(3, 2) });
   });

@@ -3,17 +3,13 @@ import { colors, type WadaColor } from './data';
 
 export interface ColorMatch {
   color: WadaColor;
-  /** Perceptual distance ΔE OK (Euclidean in OKLab), scaled ×100; about 2 is barely noticeable. */
+  /** ΔE OK ×100; about 2 is barely noticeable. */
   deltaE: number;
 }
 
 const deltaEOK = differenceEuclidean('oklab');
 
-/**
- * Returns a normalised "#rrggbb" when the input is a full hex colour:
- * "#abc", "#aabbcc" or "aabbcc". A bare 3-character value is not accepted,
- * so short numbers and words keep working as number and name searches.
- */
+// A bare 3-character value is not a colour, so "123" and "bad" stay number and name searches.
 export function parseHexColor(input: string): string | null {
   const q = input.trim().toLowerCase();
   let m = /^#([0-9a-f]{3})$/.exec(q);
@@ -22,7 +18,6 @@ export function parseHexColor(input: string): string | null {
   return m ? '#' + m[1] : null;
 }
 
-/** The Wada colours closest to hex, nearest first. */
 export function nearestColors(hex: string, limit = 5): ColorMatch[] {
   return colors
     .map((color) => ({ color, deltaE: deltaEOK(hex, color.hex) * 100 }))

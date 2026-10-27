@@ -1,40 +1,14 @@
 import { clampChroma, converter } from 'culori';
 import type { WadaColor } from './data';
 
-/**
- * Shade generation in OKLCH.
- *
- * Lighter steps move lightness from the base colour towards LIGHT_LIMIT,
- * darker steps towards DARK_LIMIT. Chroma tapers towards zero as lightness
- * approaches the limits (white and black have no chroma), and anything
- * still outside sRGB is gamut mapped by reducing chroma at fixed lightness
- * and hue. The base colour is never recomputed: its original RGB values
- * are used.
- *
- * Two spacings:
- * - spread: the room between the base and the limit is split into n + 1
- *   equal parts, so the steps always use the colour's whole range and
- *   never reach the limit.
- * - fixed: every step changes lightness by the same amount (e.g. 0.08),
- *   whatever the colour; useful for close, even ramps such as pixel art
- *   shading. A step that would pass the limit stops at it, so the steps
- *   after it repeat the same colour.
- * A base already at a limit (e.g. White) has no room on that side: its
- * steps there repeat the base. Steps that could not move by their full
- * amount are flagged as `limited`.
- *
- * Hue is constant unless hueShift is set: then each step rotates hue by
- * that many degrees, highlights towards yellow and shadows towards blue
- * violet, as in pixel art hue shifting. The rotation stops at the target
- * hue, and greys (no hue) are left unchanged.
- */
+// Shades in OKLCH. The base colour keeps its dataset RGB and is never recomputed.
+// Gamut mapping uses clampChroma, which keeps L and H (toGamut drifted hue up to 9°).
 export const LIGHT_LIMIT = 0.99;
 export const DARK_LIMIT = 0.1;
-/** Exponent of the chroma taper: C = C0 * (1 - t^CHROMA_TAPER). */
+/** C = C0 * (1 - t^CHROMA_TAPER) */
 export const CHROMA_TAPER = 2;
 export const MAX_STEPS = 8;
 
-/** Fixed step size limits and default, in OKLCH lightness (0 to 1). */
 export const MIN_STEP_SIZE = 0.02;
 export const MAX_STEP_SIZE = 0.2;
 export const DEFAULT_STEP_SIZE = 0.08;
@@ -43,15 +17,12 @@ export type Spacing = { mode: 'spread' } | { mode: 'fixed'; size: number };
 
 export const SPREAD: Spacing = { mode: 'spread' };
 
-/** Hue shift limits, in degrees per step. */
 export const MAX_HUE_SHIFT = 30;
-/** OKLCH hues the shift moves towards: warm yellow for highlights, blue violet for shadows. */
 export const LIGHT_HUE_TARGET = 100;
 export const DARK_HUE_TARGET = 280;
 
 export interface ScaleOptions {
   spacing: Spacing;
-  /** Degrees of hue rotation per step; 0 keeps hue constant. */
   hueShift: number;
 }
 
@@ -62,7 +33,6 @@ export function clampHueShift(deg: number): number {
   return Math.min(MAX_HUE_SHIFT, Math.max(0, deg));
 }
 
-/** Rotates hue towards target by at most maxDeg, along the shorter way round. */
 export function rotateHueTowards(hue: number, target: number, maxDeg: number): number {
   const diff = ((target - hue + 540) % 360) - 180; // signed, in (-180, 180]
   const move = Math.sign(diff) * Math.min(Math.abs(diff), maxDeg);
@@ -78,9 +48,8 @@ export type ShadeKind = 'dark' | 'base' | 'light';
 
 export interface Shade {
   kind: ShadeKind;
-  /** 0 for the base, 1..n moving away from it. */
   step: number;
-  /** True when the step could not move its full amount: it sits at the lightness limit or repeats its neighbour. */
+  /** The step could not move its full amount: it stopped at the limit. */
   limited: boolean;
   name: string;
   hex: string;
@@ -89,7 +58,7 @@ export interface Shade {
 
 export interface ShadeScale {
   base: WadaColor;
-  /** Ordered from darkest to lightest; the base sits between darks and lights. */
+  /** Darkest to lightest. */
   shades: Shade[];
 }
 
@@ -117,7 +86,7 @@ function shadeAt(base: WadaColor, kind: 'dark' | 'light', step: number, count: n
   const room = Math.abs(target - lch.l);
   const wanted = spacing.mode === 'fixed' ? clampStepSize(spacing.size) * step : (room * step) / (count + 1);
   const moved = Math.min(wanted, room);
-  // t: how far towards the limit this step is (0 at the base, 1 at the limit).
+  // t: 0 at the base, 1 at the limit.
   const t = room > 0 ? moved / room : 0;
   const l = lch.l + (target - lch.l) * t;
   const c = (lch.c ?? 0) * (1 - Math.pow(t, CHROMA_TAPER));

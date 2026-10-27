@@ -1,22 +1,16 @@
 import rawColors from '../data/colors.json';
 
-/** A colour from Sanzo Wada's dictionary (dataset by mattdesl, MIT). */
 export interface WadaColor {
-  /** Position in the dataset, stable identifier. */
   index: number;
-  /** Corrected name (see NAME_FIXES). */
   name: string;
-  /** Name exactly as in the source dataset. */
   sourceName: string;
   hex: string;
   rgb: [number, number, number];
   cmyk: [number, number, number, number];
-  /** Swatch chapter (0 to 5) the colour belongs to in the book. */
   swatch: number;
   combinations: number[];
 }
 
-/** One of the 348 combinations in the book. */
 export interface Combination {
   id: number;
   colors: WadaColor[];
@@ -31,12 +25,7 @@ interface RawColor {
   combinations: number[];
 }
 
-/**
- * Spelling fixes applied on top of the untouched source dataset.
- * Wada's names come from Robert Ridgway's "Color Standards and Color
- * Nomenclature" (1912); misspellings are restored to Ridgway's spelling,
- * and the A/B variants use one consistent suffix format.
- */
+// colors.json stays untouched; spelling follows Ridgway's Color Standards and Color Nomenclature (1912).
 export const NAME_FIXES: Readonly<Record<string, string>> = {
   'Eugenia Red | A': 'Eugenia Red A',
   'Eugenia Red | B': 'Eugenia Red B',
@@ -66,7 +55,6 @@ export const colors: WadaColor[] = (rawColors as RawColor[]).map((c, index) => (
   combinations: c.combinations,
 }));
 
-/** Combinations sorted by id; colours keep the dataset order. */
 export const combinations: Combination[] = (() => {
   const byId = new Map<number, WadaColor[]>();
   for (const color of colors) {
@@ -87,7 +75,6 @@ export function getCombination(id: number): Combination | undefined {
   return combinationById.get(id);
 }
 
-/** The other combinations that use this colour, sorted by id. */
 export function relatedCombinations(color: WadaColor, excludeId?: number): Combination[] {
   return color.combinations
     .filter((id) => id !== excludeId)
