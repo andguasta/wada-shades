@@ -40,6 +40,9 @@ tests/core.test.ts          tests for everything in src/core
 
 Keep logic in `src/core` (pure, tested) and only DOM code in `main.ts`.
 
+Comments: only the essential ones (why something non-obvious is done, sources, sync reminders). No comments that
+restate the code or document obvious fields; the reasoning lives here and in the README.
+
 ## Invariants (do not break)
 
 - **The base colour is never altered.** Its swatch, the `.gpl` row and the hex all use the dataset's RGB values, never a
@@ -79,6 +82,12 @@ Keep logic in `src/core` (pure, tested) and only DOM code in `main.ts`.
 - Interface text is English with British spelling ("colour"). Light and dark theme via CSS variables in `style.css`;
   toolbar controls share one height (34px) so labels align; check the 390px mobile layout for overflow.
 
+## README cover
+
+`docs/cover.png` is rendered from the project's data by `npm run cover`: combinations and shade settings at the top of
+`scripts/cover/cover.ts`, layout in `scripts/cover/index.html`. It uses the installed Chrome, else a Playwright
+Chromium, or `COVER_BROWSER`. Fonts are Charter / Georgia and Inter, so output differs slightly between systems.
+
 ## Verifying in a browser (cloud container)
 
 Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; `playwright-core` is a dev dependency. Build, run
@@ -88,7 +97,7 @@ screenshots, then stop the server (`fuser -k 4173/tcp`; do not `pkill -f` a patt
 
 ## Git workflow
 
-- Owner's rule: **push every change to `master`** and to the work branch `claude/sanzo-wada-palette-tool-5n7m63`.
+- Owner's rule: **push every change to `master`** and to the session's designated work branch.
   Only fast-forward `master` (`git merge-base --is-ancestor origin/master HEAD`, then `git push origin HEAD:master`).
   If `master` has commits not on the branch, stop and ask.
 - Commit messages in English, imperative subject, body explaining why.
@@ -102,5 +111,8 @@ screenshots, then stop the server (`fuser -k 4173/tcp`; do not `pkill -f` a patt
   later), favourites, per-colour manual edits, filter by book chapter, a usage preview/mockup.
 - Under consideration, not built: contrast matrix (WCAG / APCA) between the shades of a palette.
 - Publishing (GitHub Pages or other) is on hold; the owner runs the app locally.
+- README: written in the owner's first-person voice, personal but technical where it helps (inspired by Wada's book,
+  made flexible for shading). Keep credits to other people's work. Trimmed on purpose: no formulas beyond the chroma
+  taper, no project structure, URL parameter spec or cover instructions (those live in this file).
 - The README cover must be original (generated from the project's data); do not add third-party images without the
   owner confirming the rights.
